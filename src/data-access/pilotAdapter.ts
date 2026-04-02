@@ -9,6 +9,11 @@ import {
   type KnowledgeAssetSeed,
   type PilotRawState,
 } from "./pilotSources";
+import { mapExecutionEventSourceRefs } from "./source-adapters/executionEventAdapter";
+import { mapKpiSnapshotSourceRefs } from "./source-adapters/kpiSnapshotAdapter";
+import { mapOpportunitySignalSourceRefs } from "./source-adapters/opportunitySignalAdapter";
+import { mapProductDefinitionSourceRefs } from "./source-adapters/productDefinitionAdapter";
+import { mapReviewAssetSourceRefs } from "./source-adapters/reviewAssetAdapter";
 import type {
   ActionAuditEntry,
   ActionAuditTrail,
@@ -242,67 +247,11 @@ function buildSourceRefs(rawState: PilotRawState, projectKey: string): SourceObj
     },
   ];
 
-  rawState.opportunitySignals
-    .filter((signal) => signal.projectKey === projectKey)
-    .forEach((signal) =>
-      refs.push({
-        sourceSystem: "opportunity_signal_hub",
-        sourceObjectType: "signal",
-        sourceObjectId: signal.signalKey,
-        externalKey: signal.projectKey,
-        firstSeenAt: "2026-04-02T09:00:00+08:00",
-        lastSeenAt: "2026-04-02T10:15:00+08:00",
-      }),
-    );
-
-  if (rawState.definitions.some((definition) => definition.projectKey === projectKey)) {
-    refs.push({
-      sourceSystem: "definition_center",
-      sourceObjectType: "definition",
-      sourceObjectId: projectKey.toLowerCase().replace(/_/g, "-"),
-      externalKey: projectKey,
-      firstSeenAt: "2026-04-02T09:10:00+08:00",
-      lastSeenAt: "2026-04-02T10:15:00+08:00",
-    });
-  }
-
-  if (rawState.performance.some((performance) => performance.projectKey === projectKey)) {
-    refs.push({
-      sourceSystem:
-        rawState.projects.find((project) => project.projectKey === projectKey)?.stage === "growth_optimization"
-          ? "growth_console"
-          : "launch_dashboard",
-      sourceObjectType: "performance_snapshot",
-      sourceObjectId: normalizeEntityId("perf", projectKey),
-      externalKey: projectKey,
-      firstSeenAt: "2026-04-02T09:30:00+08:00",
-      lastSeenAt: "2026-04-02T10:45:00+08:00",
-    });
-  }
-
-  rawState.actions
-    .filter((action) => action.projectKey === projectKey)
-    .forEach((action) =>
-      refs.push({
-        sourceSystem: "approval_center",
-        sourceObjectType: "action",
-        sourceObjectId: action.actionKey,
-        externalKey: projectKey,
-        firstSeenAt: action.executionEvents[0]?.at ?? "2026-04-02T09:00:00+08:00",
-        lastSeenAt: action.executionEvents.at(-1)?.at ?? "2026-04-02T10:15:00+08:00",
-      }),
-    );
-
-  if (rawState.reviews.some((review) => review.projectKey === projectKey)) {
-    refs.push({
-      sourceSystem: "review_asset_hub",
-      sourceObjectType: "review",
-      sourceObjectId: normalizeReviewId(projectKey),
-      externalKey: projectKey,
-      firstSeenAt: "2026-04-02T09:30:00+08:00",
-      lastSeenAt: "2026-04-02T10:15:00+08:00",
-    });
-  }
+  refs.push(...mapOpportunitySignalSourceRefs(rawState, projectKey));
+  refs.push(...mapProductDefinitionSourceRefs(rawState, projectKey));
+  refs.push(...mapKpiSnapshotSourceRefs(rawState, projectKey));
+  refs.push(...mapExecutionEventSourceRefs(rawState, projectKey));
+  refs.push(...mapReviewAssetSourceRefs(rawState, projectKey));
 
   return refs;
 }

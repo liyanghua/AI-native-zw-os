@@ -1,18 +1,23 @@
 import { Link } from "react-router";
 import { Sparkles } from "lucide-react";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { buildReviewAssetsViewModel } from "../../../view-models/reviewAssets";
+import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
 export function ReviewAndAssets() {
-  const { runtime, publishAssetCandidate } = usePilotData();
-  const snapshot = runtime.getSnapshot();
-  const viewModel = buildReviewAssetsViewModel({
-    reviews: snapshot.reviews,
-    assets: snapshot.knowledgeAssets,
-  });
+  const { repositories, actions } = usePilotData();
+  const query = repositories.knowledge.getReviewAssets();
+  const viewModel = query.data.viewModel;
 
   return (
     <div className="p-8 space-y-6">
+      <QueryStatusPanel
+        title="复盘沉淀数据状态"
+        stale={query.stale}
+        partial={query.partial}
+        lastUpdatedAt={query.lastUpdatedAt}
+        issues={query.issues}
+      />
+
       <section className="grid grid-cols-3 gap-4">
         <SummaryCard label="待复盘项目" value={viewModel.summary.pendingReviews} />
         <SummaryCard label="待确认资产候选" value={viewModel.summary.pendingCandidates} />
@@ -74,7 +79,7 @@ export function ReviewAndAssets() {
                   </Link>
                 </div>
                 <button
-                  onClick={() => publishAssetCandidate(candidate.id)}
+                  onClick={() => actions.publishAssetCandidate(candidate.id)}
                   className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                   确认入库

@@ -7,41 +7,75 @@ import {
   useRef,
   type PropsWithChildren,
 } from "react";
+import { createMutationResult } from "./queryResult";
+import { createPilotRepositories } from "./repositories";
 import { createPilotRuntime } from "./pilotRuntime";
 
 const PilotDataContext = createContext<ReturnType<typeof createContextValue> | null>(null);
 
 function createContextValue(forceRefresh: () => void, runtime = createPilotRuntime()) {
+  const repositories = createPilotRepositories(runtime);
   return {
-    runtime,
+    repositories,
     refresh() {
       runtime.refreshLiveData();
       forceRefresh();
     },
-    approveAction(actionId: string) {
-      const action = runtime.actionGateway.approveAction(actionId);
-      forceRefresh();
-      return action;
-    },
-    rejectAction(actionId: string, reason?: string) {
-      const action = runtime.actionGateway.rejectAction(actionId, reason);
-      forceRefresh();
-      return action;
-    },
-    writeExecutionResult(actionId: string, input: Parameters<typeof runtime.actionGateway.writeExecutionResult>[1]) {
-      const action = runtime.actionGateway.writeExecutionResult(actionId, input);
-      forceRefresh();
-      return action;
-    },
-    publishAssetCandidate(candidateId: string) {
-      const asset = runtime.knowledgeGateway.publishAssetCandidate(candidateId);
-      forceRefresh();
-      return asset;
-    },
-    compileDecisionObject(projectId: string) {
-      const decision = runtime.decisionGateway.compileDecisionObject(projectId);
-      forceRefresh();
-      return decision;
+    actions: {
+      approveAction(actionId: string) {
+        const action = runtime.actionGateway.approveAction(actionId);
+        forceRefresh();
+        return createMutationResult({
+          data: action,
+          lastUpdatedAt: action.updatedAt,
+        });
+      },
+      rejectAction(actionId: string, reason?: string) {
+        const action = runtime.actionGateway.rejectAction(actionId, reason);
+        forceRefresh();
+        return createMutationResult({
+          data: action,
+          lastUpdatedAt: action.updatedAt,
+        });
+      },
+      writeExecutionResult(actionId: string, input: Parameters<typeof runtime.actionGateway.writeExecutionResult>[1]) {
+        const action = runtime.actionGateway.writeExecutionResult(actionId, input);
+        forceRefresh();
+        return createMutationResult({
+          data: action,
+          lastUpdatedAt: action.updatedAt,
+          error: action.lastWritebackError ?? null,
+        });
+      },
+      publishAssetCandidate(candidateId: string) {
+        const asset = runtime.knowledgeGateway.publishAssetCandidate(candidateId);
+        forceRefresh();
+        return createMutationResult({
+          data: asset,
+          lastUpdatedAt: asset.updatedAt,
+        });
+      },
+      compileDecisionContext(projectId: string) {
+        const context = runtime.decisionGateway.compileDecisionContext(projectId);
+        forceRefresh();
+        return createMutationResult({
+          data: context,
+          lastUpdatedAt: context.updatedAt,
+        });
+      },
+      compileDecisionObject(projectId: string) {
+        const decision = runtime.decisionGateway.compileDecisionObject(projectId);
+        forceRefresh();
+        return createMutationResult({
+          data: decision,
+          lastUpdatedAt: decision.updatedAt,
+        });
+      },
+      transitionProjectStage(projectId: string, nextStage: Parameters<typeof runtime.projectGateway.transitionProjectStage>[1], reason: string) {
+        const project = repositories.projectWorkbench.transitionProjectStage(projectId, nextStage, reason);
+        forceRefresh();
+        return project;
+      },
     },
   };
 }

@@ -12,7 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { buildLifecycleOverviewViewModel } from "../../../view-models/lifecycle";
+import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
 const stageIcons = {
   opportunity_pool: TrendingUp,
@@ -23,11 +23,20 @@ const stageIcons = {
 } as const;
 
 export function LifecycleOverview() {
-  const { runtime } = usePilotData();
-  const viewModel = buildLifecycleOverviewViewModel(runtime.getSnapshot());
+  const { repositories } = usePilotData();
+  const query = repositories.lifecycle.getOverview();
+  const viewModel = query.data.viewModel;
 
   return (
     <div className="p-8 space-y-6">
+      <QueryStatusPanel
+        title="生命周期数据状态"
+        stale={query.stale}
+        partial={query.partial}
+        lastUpdatedAt={query.lastUpdatedAt}
+        issues={query.issues}
+      />
+
       <section className="grid grid-cols-5 gap-4">
         <MetricCard label="在途项目" value={viewModel.summary.liveProjects} />
         <MetricCard label="待审批" value={viewModel.summary.pendingApprovals} />

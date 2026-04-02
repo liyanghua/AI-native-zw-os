@@ -34,11 +34,16 @@ import {
   assertProjectRealtimeSnapshot,
   assertProjectReviewRecord,
 } from "../domain/runtime/validators";
+import { createProjectStateMachine } from "../domain/services/projectStateMachine";
 import {
   buildPilotSnapshot,
   createPilotGovernanceState,
   type PilotGovernanceState,
 } from "./pilotAdapter";
+import {
+  ensureReviewSeed,
+  syncReviewLineageForProject,
+} from "./reviewCompiler";
 import {
   createSeedSources,
   normalizeActionId,
@@ -136,67 +141,6 @@ function updatePerformancePulse(
   }
 }
 
-function ensureReviewSeed(rawState: PilotRawState, projectKey: string) {
-  let review = rawState.reviews.find((item) => item.projectKey === projectKey);
-  if (!review) {
-    review = {
-      projectKey,
-      verdict: "observe_more",
-      resultSummary: "项目仍在执行中，等待更多结果后再复盘。",
-      attributionSummary: "当前以动作执行反馈为主。",
-      attributionFactors: [],
-      lessonsLearned: [],
-      recommendations: [],
-      assetCandidates: [],
-      knowledgeAssets: [],
-    };
-    rawState.reviews.push(review);
-  }
-  return review;
-}
-
-function ensureReviewLineage(governanceState: PilotGovernanceState, projectId: string) {
-  let lineage = governanceState.reviewLineages.find((item) => item.projectId === projectId);
-  if (!lineage) {
-    const reviewId = normalizeReviewId(projectId.replace(/^pilot-/, "").replace(/-/g, "_").toUpperCase());
-    lineage = {
-      reviewId,
-      projectId,
-      sourceDecisionIds: [],
-      sourceActionIds: [],
-      sourceExecutionLogIds: [],
-      generatedAt: "2026-04-02T10:20:00+08:00",
-    };
-    governanceState.reviewLineages.push(lineage);
-  }
-  return lineage;
-}
-
-function syncReviewLineageForProject(
-  rawState: PilotRawState,
-  governanceState: PilotGovernanceState,
-  projectKey: string,
-) {
-  const projectId = normalizeProjectId(projectKey);
-  const lineage = ensureReviewLineage(governanceState, projectId);
-  const actionSeeds = rawState.actions.filter((action) => action.projectKey === projectKey);
-  lineage.sourceDecisionIds = Array.from(
-    new Set([...lineage.sourceDecisionIds, normalizeEntityId("decision", projectKey)]),
-  );
-  lineage.sourceActionIds = Array.from(
-    new Set([...lineage.sourceActionIds, ...actionSeeds.map((action) => normalizeActionId(action.actionKey))]),
-  );
-  lineage.sourceExecutionLogIds = Array.from(
-    new Set([
-      ...lineage.sourceExecutionLogIds,
-      ...actionSeeds.flatMap((action) =>
-        action.executionEvents.map((_, index) => normalizeEntityId("log", `${action.actionKey}-${index}`)),
-      ),
-    ]),
-  );
-  lineage.generatedAt = currentTimestamp(rawState);
-}
-
 function mutateDecision(rawState: PilotRawState, projectKey: string) {
   const project = rawState.projects.find((item) => item.projectKey === projectKey);
   const performance = rawState.performance.find((item) => item.projectKey === projectKey);
@@ -262,17 +206,13 @@ export function createPilotRuntime(): PilotRuntime {
     },
     transitionProjectStage(projectId, nextStage, reason) {
       const project = ensureProject(snapshot, projectId);
-      const rule = snapshot.transitionRules.find(
-        (item) => item.fromStage === project.stage && item.toStage === nextStage,
+      const stateMachine = createProjectStateMachine(
+        snapshot.transitionRules,
+        project.allowedActionsByStage,
       );
-      if (!rule) {
-        throw new Error(`No transition rule from ${project.stage} to ${nextStage}`);
-      }
-      const blockingCriteria = project.stageExitCriteria.filter(
-        (criterion) => criterion.blocking && criterion.status !== "passed",
-      );
-      if (blockingCriteria.length > 0) {
-        throw new Error(`Blocked by exit criteria: ${blockingCriteria[0].label}`);
+      const transitionCheck = stateMachine.canTransition(project, nextStage, snapshot.transitionRules);
+      if (!transitionCheck.allowed) {
+        throw new Error(transitionCheck.reason ?? `Cannot transition to ${nextStage}`);
       }
 
       const rawProject = rawState.projects.find((item) => normalizeProjectId(item.projectKey) === projectId);
@@ -520,7 +460,7 @@ export function createPilotRuntime(): PilotRuntime {
         review.recommendations = Array.from(
           new Set([...review.recommendations, "把调价前后数据回写整理为模板，供下次首发快速复用。"]),
         );
-        syncReviewLineageForProject(rawState, governanceState, "LAUNCH_SUMMER_REFRESH");
+        syncReviewLineageForProject(rawState, governanceState, "LAUNCH_SUMMER_REFRESH", currentTimestamp(rawState));
       }
 
       snapshot = rebuild(rawState, governanceState);
@@ -623,7 +563,7 @@ export function createPilotRuntime(): PilotRuntime {
           (item) => item.assetId !== lineage.assetId,
         );
         governanceState.assetLineages.push(lineage);
-        syncReviewLineageForProject(rawState, governanceState, review.projectKey);
+        syncReviewLineageForProject(rawState, governanceState, review.projectKey, currentTimestamp(rawState));
 
         snapshot = rebuild(rawState, governanceState);
         const published = snapshot.knowledgeAssets.find((asset) => asset.id === normalizeAssetId(candidate.candidateKey));

@@ -5,11 +5,10 @@ import {
   Bot,
   Brain,
   RefreshCw,
-  ShieldCheck,
   Zap,
 } from "lucide-react";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { buildProjectDetailViewModel } from "../../../view-models/projectDetail";
+import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
 function toneClasses(tone: "positive" | "neutral" | "warning") {
   if (tone === "positive") return "text-green-700 bg-green-50";
@@ -20,40 +19,17 @@ function toneClasses(tone: "positive" | "neutral" | "warning") {
 export function ProjectDetail() {
   const { id } = useParams();
   const {
-    runtime,
-    approveAction,
-    rejectAction,
-    writeExecutionResult,
-    compileDecisionObject,
+    repositories,
+    actions,
   } = usePilotData();
 
   if (!id) {
     return <div className="p-8 text-sm text-slate-600">缺少项目 ID。</div>;
   }
 
-  const project = runtime.projectGateway.getProject(id);
-  const realtime = runtime.projectGateway.getProjectRealtimeSnapshot(id);
-  const review = runtime.knowledgeGateway.listProjectReview(id);
-  const executionLogs = runtime.actionGateway.listExecutionLogs({ projectId: id });
-  const knowledgeAssets = runtime.knowledgeGateway.searchAssets({ sourceProjectId: id });
-  const auditTrail = project.actions[0] ? runtime.lineageGateway.getActionAuditTrail(project.actions[0].id) : null;
-  const writebackRecord = project.actions[0]
-    ? runtime.lineageGateway.getExecutionWritebackRecord(project.actions[0].id)
-    : null;
-  const viewModel = buildProjectDetailViewModel({
-    project,
-    realtime,
-    executionLogs,
-    knowledgeAssets,
-    review,
-    auditTrail,
-    writebackRecord,
-  });
-
-  const pendingHumanActions = project.actions.filter((action) => action.approvalStatus === "pending");
-  const runningExecutions = project.actions.filter(
-    (action) => action.executionStatus === "queued" || action.executionStatus === "in_progress",
-  );
+  const query = repositories.projectWorkbench.getProjectDetail(id);
+  const viewModel = query.data.viewModel;
+  const collaborationSummary = query.data.collaborationSummary;
 
   return (
     <div className="p-8 space-y-6">
@@ -80,14 +56,31 @@ export function ProjectDetail() {
           </div>
           <p className="max-w-4xl text-sm text-slate-600">{viewModel.project.statusSummary}</p>
         </div>
-        <button
-          onClick={() => compileDecisionObject(project.id)}
-          className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50"
-        >
-          <RefreshCw className="mr-2 size-4" />
-          重新编译决策
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => actions.compileDecisionContext(viewModel.project.id)}
+            className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50"
+          >
+            <RefreshCw className="mr-2 size-4" />
+            编译上下文
+          </button>
+          <button
+            onClick={() => actions.compileDecisionObject(viewModel.project.id)}
+            className="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+          >
+            <RefreshCw className="mr-2 size-4" />
+            编译决策
+          </button>
+        </div>
       </div>
+
+      <QueryStatusPanel
+        title="项目数据状态"
+        stale={query.stale}
+        partial={query.partial}
+        lastUpdatedAt={query.lastUpdatedAt}
+        issues={query.issues}
+      />
 
       <section className="grid grid-cols-4 gap-4">
         {viewModel.metrics.map((metric) => (
@@ -105,7 +98,7 @@ export function ProjectDetail() {
         <LayerCard
           icon={<AlertTriangle className="size-4 text-blue-600" />}
           title="人工"
-          value={`${pendingHumanActions.length} 个待拍板`}
+          value={`${collaborationSummary.pendingHumanActions} 个待拍板`}
           description="审批、取舍、风险判断"
         />
         <LayerCard
@@ -123,7 +116,7 @@ export function ProjectDetail() {
         <LayerCard
           icon={<Zap className="size-4 text-orange-600" />}
           title="执行端"
-          value={`${runningExecutions.length} 个执行中`}
+          value={`${collaborationSummary.runningExecutions} 个执行中`}
           description={viewModel.audit.latestWriteback}
         />
       </section>
@@ -170,6 +163,18 @@ export function ProjectDetail() {
               当前不能推进下一阶段：{viewModel.stageGovernance.transitionBlockReason}
             </div>
           )}
+          {viewModel.stageGovernance.availableTransitions.length > 0 && (
+            <div className="rounded-xl border border-slate-200 p-4">
+              <div className="mb-2 text-sm font-medium text-slate-900">可推进阶段</div>
+              <div className="flex flex-wrap gap-2">
+                {viewModel.stageGovernance.availableTransitions.map((transition) => (
+                  <span key={transition.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                    {transition.toStageLabel}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
@@ -184,6 +189,34 @@ export function ProjectDetail() {
             <div className="text-sm font-medium text-slate-900">诊断</div>
             <div className="mt-2 text-sm text-slate-600">{viewModel.decision.diagnosis}</div>
           </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-xl border border-slate-200 p-4">
+              <div className="text-xs text-slate-500">编译时间</div>
+              <div className="mt-2 text-sm font-medium text-slate-900">{viewModel.decision.compiledAtLabel}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4">
+              <div className="text-xs text-slate-500">预期影响</div>
+              <div className="mt-2 text-sm font-medium text-slate-900">{viewModel.decision.expectedImpact}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4">
+              <div className="text-xs text-slate-500">审批要求</div>
+              <div className="mt-2 text-sm font-medium text-slate-900">
+                {viewModel.decision.approvalsRequired.length > 0
+                  ? `${viewModel.decision.approvalsRequired.length} 项`
+                  : "无"}
+              </div>
+            </div>
+          </div>
+          {viewModel.decision.approvalsRequired.length > 0 && (
+            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+              <div className="mb-2 text-sm font-medium text-orange-900">审批要求</div>
+              <ul className="space-y-1 text-sm text-orange-800">
+                {viewModel.decision.approvalsRequired.map((approval) => (
+                  <li key={approval}>• {approval}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {viewModel.decision.pendingQuestions.length > 0 && (
             <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
               <div className="mb-2 text-sm font-medium text-orange-900">待回答问题</div>
@@ -296,13 +329,13 @@ export function ProjectDetail() {
                   {action.approvalLabel === "待审批" && (
                     <>
                       <button
-                        onClick={() => rejectAction(action.id, "当前优先验证主图方案")}
+                        onClick={() => actions.rejectAction(action.id, "当前优先验证主图方案")}
                         className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
                       >
                         拒绝
                       </button>
                       <button
-                        onClick={() => approveAction(action.id)}
+                        onClick={() => actions.approveAction(action.id)}
                         className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
                       >
                         批准
@@ -312,7 +345,7 @@ export function ProjectDetail() {
                   {(action.executionLabel === "排队中" || action.executionLabel === "执行中") && (
                     <button
                       onClick={() =>
-                        writeExecutionResult(action.id, {
+                        actions.writeExecutionResult(action.id, {
                           actorId: "automation.executor",
                           actorType: "automation",
                           status: "completed",

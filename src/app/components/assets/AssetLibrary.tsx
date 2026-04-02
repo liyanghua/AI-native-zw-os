@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { buildAssetLibraryViewModel } from "../../../view-models/assetLibrary";
 import type { AssetType, LifecycleStage, RoleView } from "../../../domain/types/model";
+import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
 const stageOptions: Array<{ value: "all" | LifecycleStage; label: string }> = [
   { value: "all", label: "全部阶段" },
@@ -38,24 +38,32 @@ const goalOptions = [
 ] as const;
 
 export function AssetLibrary() {
-  const { runtime } = usePilotData();
+  const { repositories } = usePilotData();
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState<"all" | LifecycleStage>("all");
   const [type, setType] = useState<"all" | AssetType>("all");
   const [role, setRole] = useState<"all" | RoleView>("all");
   const [goal, setGoal] = useState<(typeof goalOptions)[number]["value"]>("all");
 
-  const assets = runtime.knowledgeGateway.searchAssets({
+  const result = repositories.knowledge.getAssetLibrary({
     query: query || undefined,
     stage: stage === "all" ? undefined : stage,
     assetType: type === "all" ? undefined : type,
     role: role === "all" ? undefined : role,
     businessGoal: goal === "all" ? undefined : goal,
   });
-  const viewModel = buildAssetLibraryViewModel(assets);
+  const viewModel = result.data.viewModel;
 
   return (
     <div className="p-8 space-y-6">
+      <QueryStatusPanel
+        title="知识资产数据状态"
+        stale={result.stale}
+        partial={result.partial}
+        lastUpdatedAt={result.lastUpdatedAt}
+        issues={result.issues}
+      />
+
       <section className="grid grid-cols-6 gap-4">
         <CounterCard label="案例" value={viewModel.countsByType.case} />
         <CounterCard label="规则" value={viewModel.countsByType.rule} />

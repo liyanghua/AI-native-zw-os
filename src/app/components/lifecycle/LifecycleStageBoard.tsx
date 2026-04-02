@@ -1,8 +1,8 @@
 import { Link } from "react-router";
 import { AlertTriangle, ArrowRight, Bot, CheckCircle2, Clock, ShieldCheck } from "lucide-react";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { buildLifecycleStageViewModel } from "../../../view-models/lifecycle";
 import type { LifecycleStage } from "../../../domain/types/model";
+import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
 const descriptions: Record<LifecycleStage, string> = {
   opportunity_pool: "把商机信号收敛成统一项目对象，先判断是否值得正式推进。",
@@ -14,13 +14,20 @@ const descriptions: Record<LifecycleStage, string> = {
 };
 
 export function LifecycleStageBoard({ stage }: { stage: LifecycleStage }) {
-  const { runtime } = usePilotData();
-  const projects = runtime.projectGateway.listProjectsByStage(stage);
-  const snapshots = projects.map((project) => runtime.projectGateway.getProjectRealtimeSnapshot(project.id));
-  const viewModel = buildLifecycleStageViewModel(stage, projects, snapshots);
+  const { repositories } = usePilotData();
+  const query = repositories.lifecycle.getStage(stage);
+  const viewModel = query.data.viewModel;
 
   return (
     <div className="p-8 space-y-6">
+      <QueryStatusPanel
+        title="阶段站数据状态"
+        stale={query.stale}
+        partial={query.partial}
+        lastUpdatedAt={query.lastUpdatedAt}
+        issues={query.issues}
+      />
+
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <h1 className="text-2xl font-semibold text-slate-900">{viewModel.stageLabel}</h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-600">{descriptions[stage]}</p>

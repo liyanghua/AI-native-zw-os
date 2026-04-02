@@ -97,6 +97,9 @@ export interface ProjectDetailViewModel {
     rationale: string;
     diagnosis: string;
     confidenceLabel: string;
+    expectedImpact: string;
+    approvalsRequired: string[];
+    compiledAtLabel: string;
     requiresHumanApproval: boolean;
     recommendedOptionTitle?: string;
     recommendedActions: Array<{
@@ -262,6 +265,9 @@ export function buildProjectDetailViewModel(input: {
       rationale: input.project.decisionObject?.rationale ?? "等待经营大脑编译",
       diagnosis: input.project.decisionObject?.diagnosis ?? "等待经营大脑诊断",
       confidenceLabel: getConfidenceLabel(input.project.decisionObject?.confidence ?? "medium"),
+      expectedImpact: input.project.decisionObject?.expectedImpact ?? "等待经营大脑给出影响预估",
+      approvalsRequired: input.project.decisionObject?.approvalsRequired ?? [],
+      compiledAtLabel: input.project.decisionObject?.compiledAt.slice(11, 16) ?? "待编译",
       requiresHumanApproval: input.project.decisionObject?.requiresHumanApproval ?? false,
       recommendedOptionTitle: recommendedOption?.title,
       recommendedActions:

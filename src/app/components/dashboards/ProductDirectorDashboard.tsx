@@ -1,13 +1,22 @@
 import { Link } from "react-router";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { buildRoleDashboardViewModel } from "../../../view-models/dashboards";
+import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
 export function ProductDirectorDashboard() {
-  const { runtime } = usePilotData();
-  const viewModel = buildRoleDashboardViewModel("product_rd_director", runtime.getSnapshot());
+  const { repositories } = usePilotData();
+  const query = repositories.roleDashboard.getDashboard("product_rd_director");
+  const viewModel = query.data.viewModel;
 
   return (
     <div className="p-8 space-y-6">
+      <QueryStatusPanel
+        title="产品总监视图数据状态"
+        stale={query.stale}
+        partial={query.partial}
+        lastUpdatedAt={query.lastUpdatedAt}
+        issues={query.issues}
+      />
+
       <section className="grid grid-cols-4 gap-4">
         <MetricCard label="商机池项目" value={viewModel.summary.opportunityCount} />
         <MetricCard label="新品孵化项目" value={viewModel.summary.incubationCount} />

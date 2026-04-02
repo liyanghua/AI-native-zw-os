@@ -1,18 +1,43 @@
 import { Link } from "react-router";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { buildRoleDashboardViewModel } from "../../../view-models/dashboards";
+import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
 export function BossDashboard() {
-  const { runtime } = usePilotData();
-  const viewModel = buildRoleDashboardViewModel("ceo", runtime.getSnapshot());
+  const { repositories } = usePilotData();
+  const query = repositories.roleDashboard.getDashboard("ceo");
+  const viewModel = query.data.viewModel;
+  const pilotMetrics = query.data.pilotMetrics;
 
   return (
     <div className="p-8 space-y-6">
+      <QueryStatusPanel
+        title="老板视图数据状态"
+        stale={query.stale}
+        partial={query.partial}
+        lastUpdatedAt={query.lastUpdatedAt}
+        issues={query.issues}
+      />
+
       <section className="grid grid-cols-4 gap-4">
         <MetricCard label="在途项目" value={viewModel.summary.liveProjects} />
         <MetricCard label="高风险项目" value={viewModel.summary.highRiskProjects} />
         <MetricCard label="待审批动作" value={viewModel.summary.pendingApprovals} />
         <MetricCard label="已沉淀资产" value={viewModel.summary.publishedAssets} />
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-slate-900">试点闭环指标</h2>
+          <p className="mt-1 text-sm text-slate-500">用占位统计验证同一项目对象是否真的在系统里闭环运转。</p>
+        </div>
+        <div className="grid grid-cols-5 gap-4">
+          {pilotMetrics.map((metric) => (
+            <div key={metric.key} className="rounded-xl bg-slate-50 p-4">
+              <div className="text-xl font-semibold text-slate-900">{metric.value}</div>
+              <div className="mt-1 text-sm text-slate-500">{metric.label}</div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">

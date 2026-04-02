@@ -143,6 +143,14 @@ When extending beyond the current prototype:
 
 ## 8. Progress Notes
 
+### 2026-04-02：repository-first 收口与 source adapter 拆分
+
+- **数据访问形态**：`PilotDataProvider` 不再对页面直接暴露 `runtime.*Gateway`，而是暴露 `repositories + actions`；页面现在统一消费 `QueryResult<T>` 与对应 ViewModel。
+- **新增 repository 层**：已落地 `IdentityRepository`、`ProjectWorkbenchRepository`、`ActionCenterRepository`、`KnowledgeRepository`、`RoleDashboardRepository`、`LifecycleRepository`、`RiskApprovalRepository`。
+- **新增 query contract**：补 `src/domain/types/query.ts`，统一 `loading / error / stale / partial / lastUpdatedAt / issues[]`；核心页面通过 `QueryStatusPanel` 显式展示异常态和数据缺口。
+- **source adapter 拆分**：`pilotAdapter` 的 source ref 绑定已拆为 5 类 adapter：商机信号、商品定义、KPI 快照、审批/执行事件、复盘/资产。
+- **指标与故事线**：新增试点指标计算逻辑 `project_id_resolution_success_rate`、`cross_page_object_consistency_rate`、`decision_compile_success_rate`、`action_writeback_success_rate`、`review_to_asset_lineage_integrity_rate`，并接入老板视图；动作中心新增 decision-driven recommended actions 区域，项目页新增显式“编译上下文 / 编译决策”入口。
+
 ### 2026-04-02：V2 单线试点骨架落地
 
 - **范围**：当前原型已从“页面内联 mock 展示”升级为本地 `pilotRuntime` 驱动的 V2 闭环骨架，覆盖 `ProjectIdentity`、生命周期状态机、`DecisionContext` / `DecisionObject`、审批/执行/复盘/资产 lineage、幂等写回记录，以及 `/project/:id`、`/action-center`、`/review-assets`、`/asset-library`、生命周期入口页、角色看板的统一 query + ViewModel 消费。

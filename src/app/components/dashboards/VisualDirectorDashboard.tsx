@@ -1,13 +1,22 @@
 import { Link } from "react-router";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { buildRoleDashboardViewModel } from "../../../view-models/dashboards";
+import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
 export function VisualDirectorDashboard() {
-  const { runtime } = usePilotData();
-  const viewModel = buildRoleDashboardViewModel("visual_director", runtime.getSnapshot());
+  const { repositories } = usePilotData();
+  const query = repositories.roleDashboard.getDashboard("visual_director");
+  const viewModel = query.data.viewModel;
 
   return (
     <div className="p-8 space-y-6">
+      <QueryStatusPanel
+        title="视觉总监视图数据状态"
+        stale={query.stale}
+        partial={query.partial}
+        lastUpdatedAt={query.lastUpdatedAt}
+        issues={query.issues}
+      />
+
       <section className="grid grid-cols-4 gap-4">
         <MetricCard label="待表达项目" value={viewModel.summary.expressionProjects} />
         <MetricCard label="沉淀模板" value={viewModel.summary.publishedTemplates} />
