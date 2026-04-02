@@ -1,25 +1,7 @@
 import { Link } from "react-router";
 import { AlertTriangle, Brain, ShieldAlert } from "lucide-react";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
-import { getRiskLabel } from "../../../domain/runtime/labels";
-
-const boundaries = [
-  {
-    id: "pricing",
-    label: "价格动作",
-    description: "首发调价、关键价格带变更必须人工批准。",
-  },
-  {
-    id: "inventory",
-    label: "库存补单",
-    description: "补单金额超过预算阈值时必须人工批准。",
-  },
-  {
-    id: "launch",
-    label: "首发切换",
-    description: "首发暂停、放量切换与回滚都必须留痕。",
-  },
-];
+import { getDecisionModeLabel, getRiskLabel, getWritebackStatusLabel } from "../../../domain/runtime/labels";
 
 export function RiskAndApproval() {
   const { runtime, approveAction, rejectAction } = usePilotData();
@@ -28,6 +10,7 @@ export function RiskAndApproval() {
   const lowConfidenceDecisions = snapshot.projects.filter(
     (project) => project.decisionObject && project.decisionObject.confidence !== "high",
   );
+  const policies = runtime.policyGateway.listHumanInTheLoopPolicies();
 
   return (
     <div className="p-8 space-y-6">
@@ -75,7 +58,7 @@ export function RiskAndApproval() {
                   <div className="font-medium text-slate-900">{action.title}</div>
                   <p className="text-sm text-slate-600">{action.summary}</p>
                   <div className="text-xs text-slate-500">
-                    {getRiskLabel(action.risk)} · 责任人 {action.owner}
+                    {getRiskLabel(action.risk)} · 责任人 {action.owner} · {getWritebackStatusLabel(action.writebackStatus)}
                   </div>
                   <Link to={`/project/${action.sourceProjectId}`} className="text-sm text-blue-600 hover:text-blue-700">
                     查看项目
@@ -132,13 +115,16 @@ export function RiskAndApproval() {
             <p className="mt-1 text-sm text-slate-500">明确哪些动作可以自动推进，哪些必须人工控制。</p>
           </div>
           <div className="space-y-3">
-            {boundaries.map((boundary) => (
-              <div key={boundary.id} className="rounded-xl border border-slate-200 p-4">
+            {policies.map((policy) => (
+              <div key={policy.id} className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-start gap-3">
                   <ShieldAlert className="mt-0.5 size-4 text-slate-700" />
                   <div>
-                    <div className="font-medium text-slate-900">{boundary.label}</div>
-                    <div className="mt-1 text-sm text-slate-600">{boundary.description}</div>
+                    <div className="font-medium text-slate-900">{policy.actionType}</div>
+                    <div className="mt-1 text-sm text-slate-600">
+                      {getDecisionModeLabel(policy.decisionMode)} · {getRiskLabel(policy.riskLevel)}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-600">{policy.fallbackPolicy}</div>
                   </div>
                 </div>
               </div>

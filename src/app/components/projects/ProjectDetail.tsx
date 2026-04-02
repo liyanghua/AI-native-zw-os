@@ -1,5 +1,13 @@
 import { Link, useParams } from "react-router";
-import { AlertTriangle, ArrowLeft, Bot, Brain, RefreshCw, Zap } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Bot,
+  Brain,
+  RefreshCw,
+  ShieldCheck,
+  Zap,
+} from "lucide-react";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
 import { buildProjectDetailViewModel } from "../../../view-models/projectDetail";
 
@@ -28,12 +36,18 @@ export function ProjectDetail() {
   const review = runtime.knowledgeGateway.listProjectReview(id);
   const executionLogs = runtime.actionGateway.listExecutionLogs({ projectId: id });
   const knowledgeAssets = runtime.knowledgeGateway.searchAssets({ sourceProjectId: id });
+  const auditTrail = project.actions[0] ? runtime.lineageGateway.getActionAuditTrail(project.actions[0].id) : null;
+  const writebackRecord = project.actions[0]
+    ? runtime.lineageGateway.getExecutionWritebackRecord(project.actions[0].id)
+    : null;
   const viewModel = buildProjectDetailViewModel({
     project,
     realtime,
     executionLogs,
     knowledgeAssets,
     review,
+    auditTrail,
+    writebackRecord,
   });
 
   const pendingHumanActions = project.actions.filter((action) => action.approvalStatus === "pending");
@@ -49,10 +63,13 @@ export function ProjectDetail() {
             <ArrowLeft className="mr-2 size-4" />
             返回生命周期总览
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold text-slate-900">{viewModel.project.name}</h1>
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
               {viewModel.project.stageLabel}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+              {viewModel.project.statusLabel}
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
               {viewModel.project.healthLabel}
@@ -94,7 +111,7 @@ export function ProjectDetail() {
         <LayerCard
           icon={<Brain className="size-4 text-violet-600" />}
           title="经营大脑"
-          value={`${viewModel.decisionEvidence.length} 条证据`}
+          value={`${viewModel.evidence.fact.length + viewModel.evidence.method.length} 条证据`}
           description={`推荐：${viewModel.decision.recommendedOptionTitle ?? "等待编译"}`}
         />
         <LayerCard
@@ -107,23 +124,65 @@ export function ProjectDetail() {
           icon={<Zap className="size-4 text-orange-600" />}
           title="执行端"
           value={`${runningExecutions.length} 个执行中`}
-          description={`${executionLogs.length} 条可追踪执行记录`}
+          description={viewModel.audit.latestWriteback}
         />
       </section>
 
-      <div className="grid grid-cols-[1.3fr,0.7fr] gap-6">
+      <div className="grid grid-cols-[0.8fr,1.2fr] gap-6">
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">决策对象</h2>
-              <p className="mt-1 text-sm text-slate-500">{viewModel.decision.problemOrOpportunity}</p>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">项目归一与状态机</h2>
+            <p className="mt-1 text-sm text-slate-500">围绕统一 projectId 观察来源、阶段出口条件和下一步可推进边界。</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-4">
+            <div className="text-sm font-medium text-slate-900">
+              {viewModel.identitySummary.conflictLabel} · 置信度 {viewModel.identitySummary.confidenceLabel}
             </div>
-            <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              置信度：{viewModel.decision.confidenceLabel}
+            <div className="mt-2 text-sm text-slate-600">
+              来源 {viewModel.identitySummary.sourceCount} 个 · {viewModel.identitySummary.resolvedBy} 于{" "}
+              {viewModel.identitySummary.resolvedAt} 完成归一
             </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {viewModel.identitySummary.sources.map((source) => (
+                <span key={source.key} className="rounded-full bg-white px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-200">
+                  {source.label}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3">
+            {viewModel.stageGovernance.exitCriteria.map((criterion) => (
+              <div key={criterion.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-slate-900">{criterion.label}</div>
+                    <div className="mt-1 text-sm text-slate-600">{criterion.description}</div>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+                    {criterion.statusLabel}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {viewModel.stageGovernance.transitionBlockReason && (
+            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+              当前不能推进下一阶段：{viewModel.stageGovernance.transitionBlockReason}
+            </div>
+          )}
+        </section>
+
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">决策对象</h2>
+            <p className="mt-1 text-sm text-slate-500">{viewModel.decision.problemOrOpportunity}</p>
           </div>
           <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
             {viewModel.decision.rationale}
+          </div>
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="text-sm font-medium text-slate-900">诊断</div>
+            <div className="mt-2 text-sm text-slate-600">{viewModel.decision.diagnosis}</div>
           </div>
           {viewModel.decision.pendingQuestions.length > 0 && (
             <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
@@ -135,15 +194,34 @@ export function ProjectDetail() {
               </ul>
             </div>
           )}
-          <div className="grid grid-cols-3 gap-4">
-            {viewModel.decision.options.map((option) => (
-              <div key={option.id} className="rounded-xl border border-slate-200 p-4">
-                <div className="mb-2 font-medium text-slate-900">{option.title}</div>
-                <p className="mb-3 text-sm text-slate-600">{option.summary}</p>
-                <div className="space-y-2 text-xs text-slate-500">
-                  <div>{option.expectedImpact}</div>
-                  <div>{option.riskLabel}</div>
-                  <div>{option.autoExecutableLabel}</div>
+          <div className="grid grid-cols-2 gap-4">
+            {viewModel.decision.recommendedActions.map((action) => (
+              <div key={action.actionId} className="rounded-xl border border-slate-200 p-4">
+                <div className="font-medium text-slate-900">{action.description}</div>
+                <div className="mt-2 text-sm text-slate-600">{action.owner}</div>
+                <div className="mt-2 text-xs text-slate-500">
+                  {action.approvalLabel} · {action.expectedMetric}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="grid grid-cols-[1fr,1fr] gap-6">
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">事实证据</h2>
+            <p className="mt-1 text-sm text-slate-500">KPI、审批、执行与异常，直接回答“现在发生了什么”。</p>
+          </div>
+          <div className="space-y-3">
+            {viewModel.evidence.fact.map((evidence) => (
+              <div key={evidence.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="text-sm font-medium text-slate-900">{evidence.summary}</div>
+                <div className="mt-2 text-xs text-slate-500">
+                  {evidence.sourceLabel ?? "事实证据"}
+                  {evidence.updatedAtLabel ? ` · ${evidence.updatedAtLabel}` : ""}
+                  {evidence.confidenceLabel ? ` · 置信度 ${evidence.confidenceLabel}` : ""}
                 </div>
               </div>
             ))}
@@ -152,29 +230,30 @@ export function ProjectDetail() {
 
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">证据与知识</h2>
-            <p className="mt-1 text-sm text-slate-500">让拍板依据明确，不把建议做成黑箱。</p>
+            <h2 className="text-lg font-semibold text-slate-900">方法证据</h2>
+            <p className="mt-1 text-sm text-slate-500">SOP、规则、案例和模板，回答“为什么这么做”。</p>
           </div>
           <div className="space-y-3">
-            {viewModel.decisionEvidence.map((evidence) => (
-              <div key={evidence.id} className="rounded-xl border border-slate-200 p-4">
+            {viewModel.evidence.method.map((evidence) => (
+              <div key={evidence.id} className="rounded-xl bg-blue-50 p-4">
                 <div className="text-sm font-medium text-slate-900">{evidence.summary}</div>
                 <div className="mt-2 text-xs text-slate-500">
-                  {evidence.sourceLabel ?? "证据"} {evidence.confidenceLabel ? `· 置信度 ${evidence.confidenceLabel}` : ""}
+                  {evidence.sourceLabel ?? "方法证据"}
+                  {evidence.applicabilityLabel ? ` · ${evidence.applicabilityLabel}` : ""}
+                  {evidence.confidenceLabel ? ` · 置信度 ${evidence.confidenceLabel}` : ""}
                 </div>
               </div>
             ))}
-            {viewModel.knowledgeHighlights.map((asset) => (
-              <div key={asset.id} className="rounded-xl bg-blue-50 p-4">
-                <div className="mb-1 text-xs font-medium text-blue-700">{asset.typeLabel}</div>
-                <div className="font-medium text-slate-900">{asset.title}</div>
-                <div className="mt-1 text-sm text-slate-700">{asset.summary}</div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {asset.sourceInfo}
-                  {asset.applicability ? ` · ${asset.applicability}` : ""}
-                </div>
+            {viewModel.evidence.missingFlags.length > 0 && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                <div className="mb-2 text-sm font-medium text-orange-900">证据缺口</div>
+                <ul className="space-y-1 text-sm text-orange-800">
+                  {viewModel.evidence.missingFlags.map((flag) => (
+                    <li key={flag}>• {flag}</li>
+                  ))}
+                </ul>
               </div>
-            ))}
+            )}
           </div>
         </section>
       </div>
@@ -183,7 +262,7 @@ export function ProjectDetail() {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">动作与回写</h2>
-            <p className="mt-1 text-sm text-slate-500">从建议到动作、执行、结果回写都在这里可追踪。</p>
+            <p className="mt-1 text-sm text-slate-500">动作版本、幂等键、写回状态和异常信息都在这里显式展示。</p>
           </div>
         </div>
         <div className="space-y-3">
@@ -191,23 +270,27 @@ export function ProjectDetail() {
             <div key={action.id} className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <div className="font-medium text-slate-900">{action.title}</div>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{action.layerLabel}</span>
                     <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700">{action.riskLabel}</span>
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">v{action.actionVersion}</span>
                   </div>
                   <p className="text-sm text-slate-600">{action.summary}</p>
                   <div className="flex flex-wrap gap-2 text-xs text-slate-500">
                     <span>{action.approvalLabel}</span>
                     <span>·</span>
                     <span>{action.executionLabel}</span>
-                    {action.requiresHumanApproval && (
-                      <>
-                        <span>·</span>
-                        <span>人工拍板节点</span>
-                      </>
-                    )}
+                    <span>·</span>
+                    <span>{action.writebackStatusLabel}</span>
+                    <span>·</span>
+                    <span>{action.idempotencyKey}</span>
                   </div>
+                  {action.lastWritebackError && (
+                    <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                      {action.lastWritebackError}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {action.approvalLabel === "待审批" && (
@@ -234,6 +317,9 @@ export function ProjectDetail() {
                           actorType: "automation",
                           status: "completed",
                           summary: `${action.title} 已完成并回写核心结果。`,
+                          idempotencyKey: action.idempotencyKey,
+                          targetSystem: "pilot.executor",
+                          targetObjectId: action.id,
                         })
                       }
                       className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
@@ -248,7 +334,7 @@ export function ProjectDetail() {
         </div>
       </section>
 
-      <div className="grid grid-cols-[1fr,0.8fr] gap-6">
+      <div className="grid grid-cols-[1fr,0.9fr] gap-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="text-lg font-semibold text-slate-900">执行时间线</h2>
           <div className="mt-4 space-y-3">
@@ -267,12 +353,47 @@ export function ProjectDetail() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">复盘与资产</h2>
+          <h2 className="text-lg font-semibold text-slate-900">审批与审计</h2>
+          <div className="mt-4 space-y-3">
+            {viewModel.audit.entries.map((entry) => (
+              <div key={entry.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="text-sm font-medium text-slate-900">{entry.summary}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {entry.actorLabel} · {entry.time}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="grid grid-cols-[1fr,0.9fr] gap-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-slate-900">知识资产</h2>
+          <div className="mt-4 space-y-3">
+            {viewModel.knowledgeHighlights.map((asset) => (
+              <div key={asset.id} className="rounded-xl bg-blue-50 p-4">
+                <div className="mb-1 text-xs font-medium text-blue-700">{asset.typeLabel}</div>
+                <div className="font-medium text-slate-900">{asset.title}</div>
+                <div className="mt-1 text-sm text-slate-700">{asset.summary}</div>
+                <div className="mt-2 text-xs text-slate-500">
+                  {asset.sourceInfo} · {asset.applicabilityLabel}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-slate-900">复盘与资产 lineage</h2>
           {viewModel.review ? (
             <div className="mt-4 space-y-4">
               <div className="rounded-xl bg-blue-50 p-4">
                 <div className="text-sm font-medium text-blue-900">{viewModel.review.verdictLabel}</div>
                 <div className="mt-2 text-sm text-slate-700">{viewModel.review.resultSummary}</div>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
+                {viewModel.review.lineageLabel}
               </div>
               <div>
                 <div className="mb-2 text-sm font-medium text-slate-900">经验总结</div>

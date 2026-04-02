@@ -2,13 +2,17 @@ import type {
   ApprovalStatus,
   AssetType,
   ConfidenceLevel,
+  DecisionMode,
   ExecutionStatus,
+  IdentityConflictStatus,
   LifecycleStage,
   ProjectHealth,
+  ProjectStatus,
   ReviewVerdict,
   RiskLevel,
   RoleView,
   SignalFreshness,
+  WritebackStatus,
 } from "../types/model";
 
 const lifecycleStageLabels: Record<LifecycleStage, string> = {
@@ -34,6 +38,15 @@ const healthLabels: Record<ProjectHealth, string> = {
   critical: "关键风险",
 };
 
+const projectStatusLabels: Record<ProjectStatus, string> = {
+  active: "推进中",
+  awaiting_approval: "等待审批",
+  blocked: "阻塞中",
+  executing: "执行中",
+  reviewing: "复盘中",
+  closed: "已闭环",
+};
+
 const riskLabels: Record<RiskLevel, string> = {
   low: "低风险",
   medium: "中风险",
@@ -57,6 +70,21 @@ const executionLabels: Record<ExecutionStatus, string> = {
   rolled_back: "已回滚",
   failed: "执行失败",
   canceled: "已取消",
+};
+
+const writebackLabels: Record<WritebackStatus, string> = {
+  not_started: "未写回",
+  pending: "写回中",
+  succeeded: "写回成功",
+  failed: "写回失败",
+  duplicate_ignored: "幂等忽略",
+};
+
+const decisionModeLabels: Record<DecisionMode, string> = {
+  auto: "自动推进",
+  suggest: "只建议",
+  require_approval: "必须审批",
+  blocked: "禁止自动推进",
 };
 
 const assetTypeLabels: Record<AssetType, string> = {
@@ -87,6 +115,12 @@ const reviewVerdictLabels: Record<ReviewVerdict, string> = {
   observe_more: "继续观察",
 };
 
+const identityConflictLabels: Record<IdentityConflictStatus, string> = {
+  healthy: "归一正常",
+  conflicted: "归一冲突",
+  manually_resolved: "人工修正",
+};
+
 export function getLifecycleStageLabel(stage: LifecycleStage) {
   return lifecycleStageLabels[stage];
 }
@@ -99,6 +133,10 @@ export function getHealthLabel(health: ProjectHealth) {
   return healthLabels[health];
 }
 
+export function getProjectStatusLabel(status: ProjectStatus) {
+  return projectStatusLabels[status];
+}
+
 export function getRiskLabel(risk: RiskLevel) {
   return riskLabels[risk];
 }
@@ -109,6 +147,14 @@ export function getApprovalLabel(status: ApprovalStatus) {
 
 export function getExecutionLabel(status: ExecutionStatus) {
   return executionLabels[status];
+}
+
+export function getWritebackStatusLabel(status: WritebackStatus) {
+  return writebackLabels[status];
+}
+
+export function getDecisionModeLabel(mode: DecisionMode) {
+  return decisionModeLabels[mode];
 }
 
 export function getAssetTypeLabel(type: AssetType) {
@@ -125,4 +171,8 @@ export function getSignalFreshnessLabel(freshness: SignalFreshness) {
 
 export function getReviewVerdictLabel(verdict: ReviewVerdict) {
   return reviewVerdictLabels[verdict];
+}
+
+export function getIdentityConflictLabel(status: IdentityConflictStatus) {
+  return identityConflictLabels[status];
 }

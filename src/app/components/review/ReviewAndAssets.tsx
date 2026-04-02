@@ -22,7 +22,7 @@ export function ReviewAndAssets() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">复盘摘要</h2>
-          <p className="mt-1 text-sm text-slate-500">让复盘直接进入下一轮可复用资产，而不是停在结论层。</p>
+          <p className="mt-1 text-sm text-slate-500">复盘不只给结论，还要把 decision / action / execution lineage 带出来。</p>
         </div>
         <div className="space-y-3">
           {viewModel.reviews.map((review) => (
@@ -31,6 +31,7 @@ export function ReviewAndAssets() {
                 <div className="space-y-2">
                   <div className="font-medium text-slate-900">{review.verdictLabel}</div>
                   <p className="text-sm text-slate-600">{review.resultSummary}</p>
+                  <div className="text-xs text-slate-500">{review.lineageLabel}</div>
                   <ul className="space-y-1 text-sm text-slate-500">
                     {review.recommendations.map((item) => (
                       <li key={item}>• {item}</li>
@@ -49,7 +50,7 @@ export function ReviewAndAssets() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">资产候选</h2>
-          <p className="mt-1 text-sm text-slate-500">把复盘提炼出的模板、规则、SOP 交给人工确认入库。</p>
+          <p className="mt-1 text-sm text-slate-500">把复盘提炼出的模板、规则、SOP 交给人工确认入库，并显式说明适用范围。</p>
         </div>
         <div className="space-y-3">
           {viewModel.candidates.length === 0 && (
@@ -67,7 +68,7 @@ export function ReviewAndAssets() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-700">{candidate.rationale}</p>
-                  <div className="text-xs text-slate-500">{candidate.applicability}</div>
+                  <div className="text-xs text-slate-500">{candidate.applicabilityLabel}</div>
                   <Link to={`/project/${candidate.projectId}`} className="text-sm text-blue-600 hover:text-blue-700">
                     来源项目
                   </Link>
@@ -87,7 +88,7 @@ export function ReviewAndAssets() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">已入库资产</h2>
-          <p className="mt-1 text-sm text-slate-500">知识资产已经和来源项目、适用阶段关联，可供下一轮检索调用。</p>
+          <p className="mt-1 text-sm text-slate-500">每条资产都带 applicability 和 lineage，后续检索不会脱离来源项目。</p>
         </div>
         <div className="grid grid-cols-3 gap-4">
           {viewModel.assets.map((asset) => (
@@ -96,6 +97,8 @@ export function ReviewAndAssets() {
               <div className="font-medium text-slate-900">{asset.title}</div>
               <div className="mt-2 text-sm text-slate-600">{asset.summary}</div>
               <div className="mt-3 text-xs text-slate-500">{asset.sourceInfo}</div>
+              <div className="mt-1 text-xs text-slate-500">{asset.applicabilityLabel}</div>
+              <div className="mt-1 text-xs text-slate-500">{asset.lineageLabel}</div>
             </div>
           ))}
         </div>

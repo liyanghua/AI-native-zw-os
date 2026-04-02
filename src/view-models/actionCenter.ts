@@ -1,5 +1,5 @@
-import { getApprovalLabel, getExecutionLabel, getRiskLabel } from "../domain/runtime/labels";
-import type { ActionItem, ExecutionLog } from "../domain/types/model";
+import { getApprovalLabel, getExecutionLabel, getRiskLabel, getWritebackStatusLabel } from "../domain/runtime/labels";
+import type { ActionAuditTrail, ActionItem, ExecutionLog } from "../domain/types/model";
 
 export interface ActionCenterViewModel {
   summary: {
@@ -17,24 +17,32 @@ export interface ActionCenterViewModel {
       summary: string;
       riskLabel: string;
       approvalLabel: string;
+      idempotencyKey: string;
+      auditCount: number;
     }>;
     queued: Array<{
       id: string;
       title: string;
       projectId: string;
       executionLabel: string;
+      writebackStatusLabel: string;
+      idempotencyKey: string;
     }>;
     inProgress: Array<{
       id: string;
       title: string;
       projectId: string;
       executionLabel: string;
+      writebackStatusLabel: string;
+      idempotencyKey: string;
     }>;
     completed: Array<{
       id: string;
       title: string;
       projectId: string;
       executionLabel: string;
+      writebackStatusLabel: string;
+      idempotencyKey: string;
     }>;
   };
   feed: Array<{
@@ -48,7 +56,12 @@ export interface ActionCenterViewModel {
 export function buildActionCenterViewModel(input: {
   actions: ActionItem[];
   executionLogs: ExecutionLog[];
+  auditTrails?: ActionAuditTrail[];
 }): ActionCenterViewModel {
+  const auditCountByActionId = new Map(
+    (input.auditTrails ?? []).map((trail) => [trail.actionId, trail.entries.length]),
+  );
+
   return {
     summary: {
       pending: input.actions.filter((action) => action.approvalStatus === "pending").length,
@@ -67,6 +80,8 @@ export function buildActionCenterViewModel(input: {
           summary: action.summary,
           riskLabel: getRiskLabel(action.risk),
           approvalLabel: getApprovalLabel(action.approvalStatus),
+          idempotencyKey: action.idempotencyKey,
+          auditCount: auditCountByActionId.get(action.id) ?? 0,
         })),
       queued: input.actions
         .filter((action) => action.executionStatus === "queued")
@@ -75,6 +90,8 @@ export function buildActionCenterViewModel(input: {
           title: action.title,
           projectId: action.sourceProjectId,
           executionLabel: getExecutionLabel(action.executionStatus),
+          writebackStatusLabel: getWritebackStatusLabel(action.writebackStatus),
+          idempotencyKey: action.idempotencyKey,
         })),
       inProgress: input.actions
         .filter((action) => action.executionStatus === "in_progress")
@@ -83,6 +100,8 @@ export function buildActionCenterViewModel(input: {
           title: action.title,
           projectId: action.sourceProjectId,
           executionLabel: getExecutionLabel(action.executionStatus),
+          writebackStatusLabel: getWritebackStatusLabel(action.writebackStatus),
+          idempotencyKey: action.idempotencyKey,
         })),
       completed: input.actions
         .filter((action) => action.executionStatus === "completed")
@@ -91,6 +110,8 @@ export function buildActionCenterViewModel(input: {
           title: action.title,
           projectId: action.sourceProjectId,
           executionLabel: getExecutionLabel(action.executionStatus),
+          writebackStatusLabel: getWritebackStatusLabel(action.writebackStatus),
+          idempotencyKey: action.idempotencyKey,
         })),
     },
     feed: input.executionLogs.slice(0, 8).map((log) => ({

@@ -1,18 +1,30 @@
 import type {
+  ActionAuditTrail,
   ActionItem,
   ApprovalStatus,
-  AssetCandidate,
+  AssetLineage,
   AssetType,
+  DecisionContext,
   DecisionObject,
   ExecutionLog,
   ExecutionStatus,
+  ExecutionWritebackRecord,
+  HumanInTheLoopPolicy,
+  IdentityResolutionLog,
   KnowledgeAssetDocument,
   LifecycleStage,
   PilotSnapshot,
+  ProjectIdentity,
   ProjectObject,
   ProjectRealtimeSnapshot,
   ProjectReviewRecord,
   PulseItem,
+  ReviewLineage,
+  RoleView,
+  SourceObjectRef,
+  SourceObjectType,
+  SourceSystem,
+  WritebackStatus,
 } from "./model";
 
 export interface ActionListFilters {
@@ -20,6 +32,7 @@ export interface ActionListFilters {
   actionId?: string;
   approvalStatus?: ApprovalStatus;
   executionStatus?: ExecutionStatus;
+  writebackStatus?: WritebackStatus;
 }
 
 export interface ExecutionLogFilters {
@@ -32,6 +45,10 @@ export interface SearchAssetFilters {
   stage?: LifecycleStage;
   assetType?: AssetType;
   sourceProjectId?: string;
+  role?: RoleView;
+  channel?: string;
+  category?: string;
+  businessGoal?: string;
 }
 
 export interface ExecutionWritebackInput {
@@ -39,6 +56,17 @@ export interface ExecutionWritebackInput {
   actorId: string;
   status: ExecutionStatus;
   summary: string;
+  idempotencyKey?: string;
+  targetSystem?: string;
+  targetObjectId?: string;
+  errorMessage?: string;
+}
+
+export interface ResolveProjectIdentityInput {
+  sourceSystem: SourceSystem;
+  sourceObjectType: SourceObjectType;
+  sourceObjectId: string;
+  externalKey?: string;
 }
 
 export interface ProjectGateway {
@@ -46,6 +74,14 @@ export interface ProjectGateway {
   getProject(projectId: string): ProjectObject;
   getProjectRealtimeSnapshot(projectId: string): ProjectRealtimeSnapshot;
   listPulseItems(audience: PulseItem["audience"], relatedProjectId?: string): PulseItem[];
+  transitionProjectStage(projectId: string, nextStage: LifecycleStage, reason: string): ProjectObject;
+}
+
+export interface IdentityGateway {
+  resolveProjectIdentity(input: ResolveProjectIdentityInput): ProjectIdentity;
+  getProjectIdentity(projectId: string): ProjectIdentity;
+  listSourceObjectRefs(projectId: string): SourceObjectRef[];
+  listIdentityResolutionLogs(projectId?: string): IdentityResolutionLog[];
 }
 
 export interface ActionGateway {
@@ -64,14 +100,30 @@ export interface KnowledgeGateway {
 }
 
 export interface DecisionGateway {
+  compileDecisionContext(projectId: string): DecisionContext;
   compileDecisionObject(projectId: string): DecisionObject;
+  getDecisionObject(projectId: string): DecisionObject;
+}
+
+export interface LineageGateway {
+  getActionAuditTrail(actionId: string): ActionAuditTrail;
+  getExecutionWritebackRecord(actionId: string): ExecutionWritebackRecord | null;
+  getReviewLineage(reviewId: string): ReviewLineage | null;
+  getAssetLineage(assetId: string): AssetLineage | null;
+}
+
+export interface PolicyGateway {
+  listHumanInTheLoopPolicies(): HumanInTheLoopPolicy[];
 }
 
 export interface PilotRuntime {
   readonly projectGateway: ProjectGateway;
+  readonly identityGateway: IdentityGateway;
   readonly actionGateway: ActionGateway;
   readonly knowledgeGateway: KnowledgeGateway;
   readonly decisionGateway: DecisionGateway;
+  readonly lineageGateway: LineageGateway;
+  readonly policyGateway: PolicyGateway;
   getSnapshot(): PilotSnapshot;
   refreshLiveData(): PilotSnapshot;
 }

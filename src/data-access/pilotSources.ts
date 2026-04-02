@@ -1,5 +1,7 @@
 import type {
   AgentState,
+  ApplicabilitySpec,
+  ActionType,
   AssetCandidate,
   AssetType,
   ApprovalStatus,
@@ -15,6 +17,7 @@ import type {
   PersonRef,
   ProductDefinition,
   ProjectHealth,
+  ProjectStatus,
   ProjectType,
   ReviewVerdict,
   RiskLevel,
@@ -28,6 +31,7 @@ export interface ProjectSeed {
   name: string;
   type: ProjectType;
   stage: LifecycleStage;
+  status?: ProjectStatus;
   owner: string;
   priority: number;
   health: ProjectHealth;
@@ -126,6 +130,9 @@ export interface ActionSeed {
   actionKey: string;
   projectKey: string;
   sourceStage: LifecycleStage;
+  actionType?: ActionType;
+  actionVersion?: number;
+  idempotencyKey?: string;
   goal: string;
   title: string;
   summary: string;
@@ -163,7 +170,7 @@ export interface KnowledgeAssetSeed {
   sourceProjectKey?: string;
   reuseCount: number;
   status: "draft" | "published" | "deprecated";
-  applicability?: string;
+  applicability?: string | ApplicabilitySpec;
   sourceInfo: string;
 }
 
@@ -194,7 +201,7 @@ export interface ReviewSeed {
     title: string;
     rationale: string;
     approvalStatus: AssetCandidate["approvalStatus"];
-    applicability?: string;
+    applicability?: string | ApplicabilitySpec;
   }>;
   knowledgeAssets: KnowledgeAssetSeed[];
 }

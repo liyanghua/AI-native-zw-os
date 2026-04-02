@@ -5,16 +5,20 @@ import type {
   AssetPublishStatus,
   AssetType,
   ConfidenceLevel,
+  DecisionMode,
   ExecutionMode,
   ExecutionStatus,
+  IdentityConflictStatus,
   LifecycleStage,
   ProjectHealth,
+  ProjectStatus,
   ProjectType,
   ReviewVerdict,
   RiskLevel,
   RoleView,
   SignalFreshness,
   TrendDirection,
+  WritebackStatus,
 } from "../types/model";
 
 export const lifecycleStages: LifecycleStage[] = [
@@ -47,6 +51,15 @@ export const projectHealthLevels: ProjectHealth[] = [
   "critical",
 ];
 
+export const projectStatuses: ProjectStatus[] = [
+  "active",
+  "awaiting_approval",
+  "blocked",
+  "executing",
+  "reviewing",
+  "closed",
+];
+
 export const riskLevels: RiskLevel[] = ["low", "medium", "high", "critical"];
 export const trendDirections: TrendDirection[] = ["up", "flat", "down"];
 export const confidenceLevels: ConfidenceLevel[] = ["low", "medium", "high"];
@@ -69,6 +82,21 @@ export const executionStatuses: ExecutionStatus[] = [
   "rolled_back",
   "failed",
   "canceled",
+];
+
+export const writebackStatuses: WritebackStatus[] = [
+  "not_started",
+  "pending",
+  "succeeded",
+  "failed",
+  "duplicate_ignored",
+];
+
+export const decisionModes: DecisionMode[] = [
+  "auto",
+  "suggest",
+  "require_approval",
+  "blocked",
 ];
 
 export const agentTypes: AgentType[] = [
@@ -119,4 +147,10 @@ export const assetPublishStatuses: AssetPublishStatus[] = [
   "draft",
   "published",
   "deprecated",
+];
+
+export const identityConflictStatuses: IdentityConflictStatus[] = [
+  "healthy",
+  "conflicted",
+  "manually_resolved",
 ];

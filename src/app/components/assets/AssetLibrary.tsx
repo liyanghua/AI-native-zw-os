@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
 import { buildAssetLibraryViewModel } from "../../../view-models/assetLibrary";
-import type { AssetType, LifecycleStage } from "../../../domain/types/model";
+import type { AssetType, LifecycleStage, RoleView } from "../../../domain/types/model";
 
 const stageOptions: Array<{ value: "all" | LifecycleStage; label: string }> = [
   { value: "all", label: "全部阶段" },
@@ -22,16 +22,35 @@ const typeOptions: Array<{ value: "all" | AssetType; label: string }> = [
   { value: "evaluation_sample", label: "评测样本" },
 ];
 
+const roleOptions: Array<{ value: "all" | RoleView; label: string }> = [
+  { value: "all", label: "全部角色" },
+  { value: "ceo", label: "老板" },
+  { value: "product_rd_director", label: "产品研发总监" },
+  { value: "growth_director", label: "运营与营销总监" },
+  { value: "visual_director", label: "视觉总监" },
+];
+
+const goalOptions = [
+  { value: "all", label: "全部目标" },
+  { value: "提升首发转化", label: "提升首发转化" },
+  { value: "稳定增长效率", label: "稳定增长效率" },
+  { value: "提升首发通过率", label: "提升首发通过率" },
+] as const;
+
 export function AssetLibrary() {
   const { runtime } = usePilotData();
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState<"all" | LifecycleStage>("all");
   const [type, setType] = useState<"all" | AssetType>("all");
+  const [role, setRole] = useState<"all" | RoleView>("all");
+  const [goal, setGoal] = useState<(typeof goalOptions)[number]["value"]>("all");
 
   const assets = runtime.knowledgeGateway.searchAssets({
     query: query || undefined,
     stage: stage === "all" ? undefined : stage,
     assetType: type === "all" ? undefined : type,
+    role: role === "all" ? undefined : role,
+    businessGoal: goal === "all" ? undefined : goal,
   });
   const viewModel = buildAssetLibraryViewModel(assets);
 
@@ -47,7 +66,7 @@ export function AssetLibrary() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="grid grid-cols-[1fr,180px,180px] gap-4">
+        <div className="grid grid-cols-[1fr,180px,180px,180px,180px] gap-4">
           <label className="space-y-2">
             <div className="text-sm font-medium text-slate-700">搜索知识资产</div>
             <input
@@ -85,6 +104,34 @@ export function AssetLibrary() {
               ))}
             </select>
           </label>
+          <label className="space-y-2">
+            <div className="text-sm font-medium text-slate-700">角色</div>
+            <select
+              value={role}
+              onChange={(event) => setRole(event.target.value as typeof role)}
+              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-blue-500"
+            >
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-2">
+            <div className="text-sm font-medium text-slate-700">业务目标</div>
+            <select
+              value={goal}
+              onChange={(event) => setGoal(event.target.value as typeof goal)}
+              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-blue-500"
+            >
+              {goalOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </section>
 
@@ -100,13 +147,12 @@ export function AssetLibrary() {
                 <div className="mb-2 text-xs font-medium text-blue-700">{asset.typeLabel}</div>
                 <div className="font-medium text-slate-900">{asset.title}</div>
                 <div className="mt-2 text-sm text-slate-600">{asset.summary}</div>
-                <div className="mt-3 text-xs text-slate-500">
-                  {asset.sourceInfo}
-                  {asset.applicability ? ` · ${asset.applicability}` : ""}
-                </div>
-                {assets.find((item) => item.id === asset.id)?.sourceProjectId && (
+                <div className="mt-3 text-xs text-slate-500">{asset.sourceInfo}</div>
+                <div className="mt-1 text-xs text-slate-500">{asset.applicabilityLabel}</div>
+                <div className="mt-1 text-xs text-slate-500">{asset.lineageLabel}</div>
+                {asset.sourceProjectId && (
                   <Link
-                    to={`/project/${assets.find((item) => item.id === asset.id)?.sourceProjectId}`}
+                    to={`/project/${asset.sourceProjectId}`}
                     className="mt-3 inline-flex text-sm text-blue-600 hover:text-blue-700"
                   >
                     查看来源项目

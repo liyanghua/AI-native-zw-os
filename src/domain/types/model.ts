@@ -24,6 +24,14 @@ export type ProjectHealth =
   | "at_risk"
   | "critical";
 
+export type ProjectStatus =
+  | "active"
+  | "awaiting_approval"
+  | "blocked"
+  | "executing"
+  | "reviewing"
+  | "closed";
+
 export type RiskLevel =
   | "low"
   | "medium"
@@ -51,6 +59,55 @@ export type ExecutionStatus =
   | "rolled_back"
   | "failed"
   | "canceled";
+
+export type WritebackStatus =
+  | "not_started"
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "duplicate_ignored";
+
+export type DecisionMode =
+  | "auto"
+  | "suggest"
+  | "require_approval"
+  | "blocked";
+
+export type IdentityConflictStatus =
+  | "healthy"
+  | "conflicted"
+  | "manually_resolved";
+
+export type IdentityResolutionPolicy =
+  | "source_key_match"
+  | "composite_match"
+  | "manual_override";
+
+export type SourceSystem =
+  | "opportunity_signal_hub"
+  | "definition_center"
+  | "launch_dashboard"
+  | "growth_console"
+  | "approval_center"
+  | "review_asset_hub";
+
+export type ActionType =
+  | "project_initiation"
+  | "price_adjustment"
+  | "visual_refresh"
+  | "inventory_restock"
+  | "budget_reallocation"
+  | "price_confirmation"
+  | "review_publish";
+
+export type SourceObjectType =
+  | "project"
+  | "signal"
+  | "definition"
+  | "performance_snapshot"
+  | "action"
+  | "review"
+  | "asset";
 
 export type AgentType =
   | "opportunity"
@@ -150,8 +207,20 @@ export interface KPISet {
   updatedAt: string;
 }
 
-export interface EvidenceRef {
-  id: string;
+export interface ApplicabilitySpec {
+  stage: LifecycleStage[];
+  role: RoleView[];
+  assetType: AssetType[];
+  channel?: string;
+  category?: string;
+  businessGoal?: string;
+  priceBand?: string;
+  lifecycle?: string;
+  preconditions: string[];
+  exclusionConditions: string[];
+}
+
+export interface EvidenceRef extends EntityMeta {
   type:
     | "metric"
     | "history"
@@ -160,14 +229,23 @@ export interface EvidenceRef {
     | "agent_observation"
     | "user_feedback"
     | "competitive_scan";
+  layer: "fact" | "method";
   summary: string;
   sourceLabel?: string;
   confidence?: ConfidenceLevel;
+  relatedProjectId?: string;
+  updatedAtLabel?: string;
+  applicability?: ApplicabilitySpec;
 }
 
 export interface EvidencePack {
+  factEvidence: EvidenceRef[];
+  methodEvidence: EvidenceRef[];
   refs: EvidenceRef[];
   summary?: string;
+  generatedAt: string;
+  retrievalTrace: string[];
+  missingEvidenceFlags: string[];
 }
 
 export interface DecisionOption {
@@ -182,18 +260,65 @@ export interface DecisionOption {
   constraints?: string[];
 }
 
+export interface ValidationPlan {
+  window: string;
+  primaryMetric: string;
+  expectedDirection: "up" | "down" | "stable";
+  successCriteria: string[];
+  rollbackHint?: string;
+}
+
+export interface RecommendedAction {
+  actionId: string;
+  actionType: ActionType;
+  description: string;
+  owner: string;
+  dueAt: string;
+  expectedMetric: string;
+  expectedDirection: "up" | "down" | "stable";
+  requiredApproval: boolean;
+  rollbackHint?: string;
+  confidence: ConfidenceLevel;
+  supportingEvidenceRefs: string[];
+}
+
+export interface DecisionContext extends EntityMeta {
+  projectId: string;
+  stage: LifecycleStage;
+  goalSpec: string;
+  currentStateSummary: string;
+  diagnosis: string;
+  evidencePack: EvidencePack;
+  compiledBy: string;
+  compilerVersion: string;
+}
+
 export interface DecisionObject extends EntityMeta {
   projectId: string;
   stage: LifecycleStage;
+  decisionVersion: number;
+  decisionContextId: string;
+  goalSpec: string;
+  currentStateSummary: string;
+  diagnosis: string;
   problemOrOpportunity: string;
   rationale: string;
   rootCauseSummary?: string;
   options: DecisionOption[];
   recommendedOptionId?: string;
+  recommendedActions: RecommendedAction[];
+  risks: string[];
+  approvalsRequired: string[];
+  expectedImpact: string;
+  validationPlan: ValidationPlan;
   confidence: ConfidenceLevel;
   requiresHumanApproval: boolean;
   evidencePack: EvidencePack;
+  evidenceRefs: string[];
   pendingQuestions?: string[];
+  compiledAt: string;
+  compiledBy: string;
+  compilerVersion: string;
 }
 
 export interface OpportunitySignal {
@@ -277,26 +402,57 @@ export interface ExpressionPlan extends EntityMeta {
   recommendedDirection?: string;
 }
 
-export interface ActionItem extends EntityMeta {
-  sourceProjectId: string;
-  sourceStage: LifecycleStage;
-  goal: string;
-  title: string;
-  summary: string;
-  expectedImpact: string;
-  risk: RiskLevel;
-  owner: string;
-  approvalStatus: ApprovalStatus;
-  executionMode: ExecutionMode;
-  executionStatus: ExecutionStatus;
-  validationWindow?: string;
-  rollbackCondition?: string;
-  requiresHumanApproval: boolean;
-  triggeredBy:
-    | "human"
-    | "decision_brain"
-    | "scenario_agent"
-    | "automation_rule";
+export interface SourceObjectRef {
+  sourceSystem: SourceSystem;
+  sourceObjectType: SourceObjectType;
+  sourceObjectId: string;
+  externalKey?: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface ProjectIdentity extends EntityMeta {
+  projectId: string;
+  identityVersion: number;
+  sourceRefs: SourceObjectRef[];
+  confidence: ConfidenceLevel;
+  resolvedBy: string;
+  resolvedAt: string;
+  resolutionPolicy: IdentityResolutionPolicy;
+  conflictStatus: IdentityConflictStatus;
+}
+
+export interface IdentityResolutionLog extends EntityMeta {
+  projectId: string;
+  previousResolution: string;
+  newResolution: string;
+  reason: string;
+  operator: string;
+}
+
+export interface StageExitCriteria {
+  id: string;
+  stage: LifecycleStage;
+  label: string;
+  description: string;
+  status: "passed" | "failed" | "pending";
+  blocking: boolean;
+}
+
+export interface TransitionRule {
+  id: string;
+  fromStage: LifecycleStage;
+  toStage: LifecycleStage;
+  description: string;
+  exitCriteriaIds: string[];
+  allowRollback: boolean;
+}
+
+export interface AllowedActionByStage {
+  stage: LifecycleStage;
+  actionType: ActionType;
+  decisionMode: DecisionMode;
+  requiresApproval: boolean;
 }
 
 export interface ApprovalRecord extends EntityMeta {
@@ -312,6 +468,69 @@ export interface ExecutionLog extends EntityMeta {
   actorId: string;
   status: ExecutionStatus;
   summary: string;
+}
+
+export interface ActionItem extends EntityMeta {
+  sourceProjectId: string;
+  sourceStage: LifecycleStage;
+  actionType: ActionType;
+  decisionId: string;
+  actionVersion: number;
+  idempotencyKey: string;
+  goal: string;
+  title: string;
+  summary: string;
+  expectedImpact: string;
+  risk: RiskLevel;
+  owner: string;
+  approvalStatus: ApprovalStatus;
+  executionMode: ExecutionMode;
+  executionStatus: ExecutionStatus;
+  writebackStatus: WritebackStatus;
+  writebackAttemptCount: number;
+  lastWritebackError?: string;
+  validationWindow?: string;
+  rollbackCondition?: string;
+  requiresHumanApproval: boolean;
+  triggeredBy:
+    | "human"
+    | "decision_brain"
+    | "scenario_agent"
+    | "automation_rule";
+}
+
+export interface ActionAuditEntry extends EntityMeta {
+  actionId: string;
+  eventType:
+    | "created"
+    | "approval_requested"
+    | "approved"
+    | "rejected"
+    | "writeback_requested"
+    | "writeback_succeeded"
+    | "writeback_failed"
+    | "duplicate_writeback"
+    | "stage_transition";
+  actorType: "human" | "agent" | "automation" | "system";
+  actorId: string;
+  summary: string;
+}
+
+export interface ActionAuditTrail {
+  actionId: string;
+  entries: ActionAuditEntry[];
+}
+
+export interface ExecutionWritebackRecord extends EntityMeta {
+  writebackId: string;
+  actionId: string;
+  idempotencyKey: string;
+  targetSystem: string;
+  targetObjectId: string;
+  payloadHash: string;
+  resultStatus: WritebackStatus;
+  errorMessage?: string;
+  attemptCount: number;
 }
 
 export interface AgentState extends EntityMeta {
@@ -351,6 +570,14 @@ export interface PolicyBoundary {
   enforcementMode: PolicyEnforcementMode;
 }
 
+export interface HumanInTheLoopPolicy extends EntityMeta {
+  actionType: ActionType;
+  decisionMode: DecisionMode;
+  triggerConditions: string[];
+  riskLevel: RiskLevel;
+  fallbackPolicy: string;
+}
+
 export interface AttributionFactor {
   id: string;
   category:
@@ -377,13 +604,30 @@ export interface ReviewSummary extends EntityMeta {
   recommendations: string[];
 }
 
+export interface ReviewLineage {
+  reviewId: string;
+  projectId: string;
+  sourceDecisionIds: string[];
+  sourceActionIds: string[];
+  sourceExecutionLogIds: string[];
+  generatedAt: string;
+}
+
 export interface AssetCandidate extends EntityMeta {
   projectId: string;
   type: AssetType;
   title: string;
   rationale: string;
   approvalStatus: ApprovalStatus;
-  applicability?: string;
+  applicability: ApplicabilitySpec;
+}
+
+export interface AssetLineage {
+  assetId: string;
+  sourceReviewId: string;
+  sourceProjectId: string;
+  publishStatus: AssetPublishStatus;
+  publishedAt: string;
 }
 
 export interface PublishedAsset extends EntityMeta {
@@ -419,6 +663,7 @@ export interface PulseBundle {
 
 export interface ProjectRealtimeSnapshot {
   projectId: string;
+  status: ProjectStatus;
   health: ProjectHealth;
   riskLevel: RiskLevel;
   keyBlocker?: string;
@@ -446,6 +691,7 @@ export interface ProjectObject extends EntityMeta {
   type: ProjectType;
   name: string;
   stage: LifecycleStage;
+  status: ProjectStatus;
   owner: string;
   stakeholders: PersonRef[];
   priority: number;
@@ -455,9 +701,15 @@ export interface ProjectObject extends EntityMeta {
   statusSummary: string;
   latestPulse?: string;
   keyBlocker?: string;
+  identity: ProjectIdentity;
+  stageExitCriteria: StageExitCriteria[];
+  availableTransitions: TransitionRule[];
+  allowedActionsByStage: AllowedActionByStage[];
+  transitionBlockReason?: string;
   kpis: KPISet;
   opportunitySignals?: OpportunitySignal[];
   opportunityAssessment?: OpportunityAssessment;
+  decisionContext?: DecisionContext;
   decisionObject?: DecisionObject;
   definition?: ProductDefinition;
   samplingReview?: SamplingReview;
@@ -467,6 +719,7 @@ export interface ProjectObject extends EntityMeta {
   executionLogs?: ExecutionLog[];
   agentStates: AgentState[];
   review?: ReviewSummary;
+  reviewLineage?: ReviewLineage;
   assetCandidates?: AssetCandidate[];
   publishedAssets?: PublishedAsset[];
 }
@@ -474,23 +727,32 @@ export interface ProjectObject extends EntityMeta {
 export interface KnowledgeAssetDocument extends PublishedAsset {
   stage: LifecycleStage;
   assetType: AssetType;
-  applicability?: string;
+  applicability: ApplicabilitySpec;
   sourceInfo: string;
+  lineage?: AssetLineage;
 }
 
 export interface ProjectReviewRecord {
   projectId: string;
   review: ReviewSummary | null;
+  lineage: ReviewLineage | null;
   candidates: AssetCandidate[];
   publishedAssets: KnowledgeAssetDocument[];
 }
 
 export interface PilotSnapshot {
   projects: ProjectObject[];
+  identities: ProjectIdentity[];
+  identityResolutionLogs: IdentityResolutionLog[];
+  transitionRules: TransitionRule[];
   realtimeSnapshots: ProjectRealtimeSnapshot[];
   pulses: PulseItem[];
   exceptions: ExceptionItem[];
   liveFeed: LiveSignalFeedItem[];
   knowledgeAssets: KnowledgeAssetDocument[];
   reviews: ProjectReviewRecord[];
+  actionAuditTrails: ActionAuditTrail[];
+  executionWritebackRecords: ExecutionWritebackRecord[];
+  hitlPolicies: HumanInTheLoopPolicy[];
+  assetLineages: AssetLineage[];
 }

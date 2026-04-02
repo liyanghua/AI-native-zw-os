@@ -13,7 +13,11 @@ export function ActionCenter() {
 
   const actions = runtime.actionGateway.listActions();
   const executionLogs = runtime.actionGateway.listExecutionLogs();
-  const viewModel = buildActionCenterViewModel({ actions, executionLogs });
+  const viewModel = buildActionCenterViewModel({
+    actions,
+    executionLogs,
+    auditTrails: runtime.getSnapshot().actionAuditTrails,
+  });
 
   return (
     <div className="p-8 space-y-6">
@@ -28,19 +32,22 @@ export function ActionCenter() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">待审批动作</h2>
-          <p className="mt-1 text-sm text-slate-500">让老板和总监只处理真正需要拍板的动作。</p>
+          <p className="mt-1 text-sm text-slate-500">让老板和总监只处理真正需要拍板的动作，同时显式看到幂等键和审计数。</p>
         </div>
         <div className="space-y-3">
           {viewModel.columns.pendingApprovals.map((pending) => (
             <div key={pending.id} className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <div className="font-medium text-slate-900">{pending.title}</div>
                     <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700">{pending.riskLabel}</span>
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{pending.approvalLabel}</span>
                   </div>
                   <p className="text-sm text-slate-600">{pending.summary}</p>
+                  <div className="text-xs text-slate-500">
+                    {pending.idempotencyKey} · {pending.auditCount} 条审计记录
+                  </div>
                   <Link to={`/project/${pending.projectId}`} className="text-sm text-blue-600 hover:text-blue-700">
                     查看项目详情
                   </Link>
@@ -70,12 +77,15 @@ export function ActionCenter() {
           title="排队中"
           items={viewModel.columns.queued}
           actionLabel="写回完成"
-          onAction={(actionId) =>
+          onAction={(actionId, idempotencyKey) =>
             writeExecutionResult(actionId, {
               actorId: "automation.executor",
               actorType: "automation",
               status: "completed",
               summary: "动作已执行完成，并回写核心结果。",
+              idempotencyKey,
+              targetSystem: "pilot.executor",
+              targetObjectId: actionId,
             })
           }
         />
@@ -83,12 +93,15 @@ export function ActionCenter() {
           title="执行中"
           items={viewModel.columns.inProgress}
           actionLabel="回写进度"
-          onAction={(actionId) =>
+          onAction={(actionId, idempotencyKey) =>
             writeExecutionResult(actionId, {
               actorId: "scenario.agent",
               actorType: "agent",
               status: "completed",
               summary: "场景 Agent 已完成执行并同步回写结果。",
+              idempotencyKey,
+              targetSystem: "scenario.agent",
+              targetObjectId: actionId,
             })
           }
         />
@@ -98,7 +111,7 @@ export function ActionCenter() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-900">执行动态</h2>
-          <p className="mt-1 text-sm text-slate-500">让动作从建议到执行的链路完全可追踪。</p>
+          <p className="mt-1 text-sm text-slate-500">让动作从建议到执行、写回、幂等处理的链路完全可追踪。</p>
         </div>
         <div className="space-y-3">
           {viewModel.feed.map((item) => (
@@ -148,9 +161,11 @@ function ColumnCard({
     title: string;
     projectId: string;
     executionLabel: string;
+    writebackStatusLabel: string;
+    idempotencyKey: string;
   }>;
   actionLabel?: string;
-  onAction?: (actionId: string) => void;
+  onAction?: (actionId: string, idempotencyKey: string) => void;
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -160,14 +175,17 @@ function ColumnCard({
         {items.map((item) => (
           <div key={item.id} className="rounded-xl border border-slate-200 p-4">
             <div className="font-medium text-slate-900">{item.title}</div>
-            <div className="mt-1 text-xs text-slate-500">{item.executionLabel}</div>
+            <div className="mt-1 text-xs text-slate-500">
+              {item.executionLabel} · {item.writebackStatusLabel}
+            </div>
+            <div className="mt-1 text-xs text-slate-500">{item.idempotencyKey}</div>
             <div className="mt-3 flex items-center justify-between">
               <Link to={`/project/${item.projectId}`} className="text-sm text-blue-600 hover:text-blue-700">
                 查看项目
               </Link>
               {actionLabel && onAction && (
                 <button
-                  onClick={() => onAction(item.id)}
+                  onClick={() => onAction(item.id, item.idempotencyKey)}
                   className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
                 >
                   {actionLabel}

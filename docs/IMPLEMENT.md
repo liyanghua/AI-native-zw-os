@@ -143,6 +143,14 @@ When extending beyond the current prototype:
 
 ## 8. Progress Notes
 
+### 2026-04-02：V2 单线试点骨架落地
+
+- **范围**：当前原型已从“页面内联 mock 展示”升级为本地 `pilotRuntime` 驱动的 V2 闭环骨架，覆盖 `ProjectIdentity`、生命周期状态机、`DecisionContext` / `DecisionObject`、审批/执行/复盘/资产 lineage、幂等写回记录，以及 `/project/:id`、`/action-center`、`/review-assets`、`/asset-library`、生命周期入口页、角色看板的统一 query + ViewModel 消费。
+- **canonical 约束**：生命周期枚举继续对齐 `DATA_MODEL.md`，内部保持 `launch_validation` / `review_capture`；V2 文案中的 `launch_verification` / `review_closed` 暂不作为新的 canonical enum 引入。`review_closed` 语义落在 `review_capture + ProjectStatus.closed`。
+- **前端结构**：`src/domain/types/*` 已补齐 identity / state machine / decision / lineage / HITL schema；`src/domain/runtime/*` 已补齐对应 labels / validators；`src/data-access/*` 已升级为可追溯 pilot runtime；`src/view-models/*` 负责页面整形，页面组件不再直接拼业务 shape。
+- **行为约束**：写回链路现在显式区分 `executionStatus` 与 `writebackStatus`，并通过 `idempotencyKey` + writeback record 做幂等；知识资产已带结构化 `applicability`，检索可按阶段 / 角色 / 业务目标过滤；状态迁移通过 exit criteria 阻断非法推进。
+- **试点边界**：`/product-upgrade` 明确调整为“范围说明页”，不进入本轮真实数据接入；当前仍采用本地 pilot runtime + 轮询刷新，不引入开放式聊天壳和 WebSocket-first 实时架构。
+
 ### 2026-04：文档与 Vite 原型对齐
 
 - **背景**：`docs/` 中部分路径、Next.js 里程碑记录与当前仓库不一致；用户要求按 **系统原型** 更新 `docs/`（**保留 `DATA_MODEL.md` 不动**）。

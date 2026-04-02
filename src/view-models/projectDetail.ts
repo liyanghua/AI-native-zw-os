@@ -1,6 +1,20 @@
-import { getApprovalLabel, getAssetTypeLabel, getConfidenceLabel, getExecutionLabel, getHealthLabel, getLifecycleStageLabel, getReviewVerdictLabel, getRiskLabel } from "../domain/runtime/labels";
+import {
+  getApprovalLabel,
+  getAssetTypeLabel,
+  getConfidenceLabel,
+  getExecutionLabel,
+  getHealthLabel,
+  getIdentityConflictLabel,
+  getLifecycleStageLabel,
+  getProjectStatusLabel,
+  getReviewVerdictLabel,
+  getRiskLabel,
+  getWritebackStatusLabel,
+} from "../domain/runtime/labels";
 import type {
+  ActionAuditTrail,
   ExecutionLog,
+  ExecutionWritebackRecord,
   KnowledgeAssetDocument,
   ProjectObject,
   ProjectRealtimeSnapshot,
@@ -24,11 +38,18 @@ function getLayerLabel(triggeredBy: ProjectObject["actions"][number]["triggeredB
   return "人工";
 }
 
+function formatApplicability(asset: { applicability: KnowledgeAssetDocument["applicability"] }) {
+  const stageLabel = asset.applicability.stage[0];
+  const goal = asset.applicability.businessGoal ?? "通用经营";
+  return `${stageLabel} · ${goal}`;
+}
+
 export interface ProjectDetailViewModel {
   project: {
     id: string;
     name: string;
     stageLabel: string;
+    statusLabel: string;
     healthLabel: string;
     riskLabel: string;
     targetSummary: string;
@@ -37,6 +58,32 @@ export interface ProjectDetailViewModel {
     keyBlocker?: string;
     owner: string;
     priority: number;
+  };
+  identitySummary: {
+    confidenceLabel: string;
+    conflictLabel: string;
+    sourceCount: number;
+    resolvedBy: string;
+    resolvedAt: string;
+    sources: Array<{
+      key: string;
+      label: string;
+    }>;
+  };
+  stageGovernance: {
+    exitCriteria: Array<{
+      id: string;
+      label: string;
+      description: string;
+      statusLabel: string;
+      blocking: boolean;
+    }>;
+    transitionBlockReason?: string;
+    availableTransitions: Array<{
+      id: string;
+      toStageLabel: string;
+      description: string;
+    }>;
   };
   metrics: Array<{
     id: string;
@@ -48,18 +95,35 @@ export interface ProjectDetailViewModel {
   decision: {
     problemOrOpportunity: string;
     rationale: string;
+    diagnosis: string;
     confidenceLabel: string;
     requiresHumanApproval: boolean;
     recommendedOptionTitle?: string;
-    options: Array<{
-      id: string;
-      title: string;
-      summary: string;
-      expectedImpact: string;
-      riskLabel: string;
-      autoExecutableLabel: string;
+    recommendedActions: Array<{
+      actionId: string;
+      description: string;
+      owner: string;
+      approvalLabel: string;
+      expectedMetric: string;
     }>;
     pendingQuestions: string[];
+  };
+  evidence: {
+    fact: Array<{
+      id: string;
+      summary: string;
+      sourceLabel?: string;
+      confidenceLabel?: string;
+      updatedAtLabel?: string;
+    }>;
+    method: Array<{
+      id: string;
+      summary: string;
+      sourceLabel?: string;
+      confidenceLabel?: string;
+      applicabilityLabel?: string;
+    }>;
+    missingFlags: string[];
   };
   decisionEvidence: Array<{
     id: string;
@@ -76,6 +140,10 @@ export interface ProjectDetailViewModel {
     riskLabel: string;
     layerLabel: string;
     requiresHumanApproval: boolean;
+    actionVersion: number;
+    idempotencyKey: string;
+    writebackStatusLabel: string;
+    lastWritebackError?: string;
   }>;
   executionTimeline: Array<{
     id: string;
@@ -84,6 +152,15 @@ export interface ProjectDetailViewModel {
     actorLabel: string;
     time: string;
   }>;
+  audit: {
+    entries: Array<{
+      id: string;
+      summary: string;
+      actorLabel: string;
+      time: string;
+    }>;
+    latestWriteback: string;
+  };
   agentLane: Array<{
     id: string;
     typeLabel: string;
@@ -97,7 +174,7 @@ export interface ProjectDetailViewModel {
     title: string;
     summary: string;
     sourceInfo: string;
-    applicability?: string;
+    applicabilityLabel: string;
   }>;
   review: {
     verdictLabel: string;
@@ -106,6 +183,7 @@ export interface ProjectDetailViewModel {
     recommendations: string[];
     candidateCount: number;
     publishedCount: number;
+    lineageLabel: string;
   } | null;
 }
 
@@ -115,6 +193,8 @@ export function buildProjectDetailViewModel(input: {
   executionLogs: ExecutionLog[];
   knowledgeAssets: KnowledgeAssetDocument[];
   review: ProjectReviewRecord;
+  auditTrail?: ActionAuditTrail | null;
+  writebackRecord?: ExecutionWritebackRecord | null;
 }): ProjectDetailViewModel {
   const recommendedOption = input.project.decisionObject?.options.find(
     (option) => option.id === input.project.decisionObject?.recommendedOptionId,
@@ -125,6 +205,7 @@ export function buildProjectDetailViewModel(input: {
       id: input.project.id,
       name: input.project.name,
       stageLabel: getLifecycleStageLabel(input.project.stage),
+      statusLabel: getProjectStatusLabel(input.project.status),
       healthLabel: getHealthLabel(input.project.health),
       riskLabel: getRiskLabel(input.project.riskLevel),
       targetSummary: input.project.targetSummary,
@@ -133,6 +214,33 @@ export function buildProjectDetailViewModel(input: {
       keyBlocker: input.project.keyBlocker,
       owner: input.project.owner,
       priority: input.project.priority,
+    },
+    identitySummary: {
+      confidenceLabel: getConfidenceLabel(input.project.identity.confidence),
+      conflictLabel: getIdentityConflictLabel(input.project.identity.conflictStatus),
+      sourceCount: input.project.identity.sourceRefs.length,
+      resolvedBy: input.project.identity.resolvedBy,
+      resolvedAt: input.project.identity.resolvedAt.slice(11, 16),
+      sources: input.project.identity.sourceRefs.map((source) => ({
+        key: source.sourceObjectId,
+        label: `${source.sourceSystem} · ${source.sourceObjectType}`,
+      })),
+    },
+    stageGovernance: {
+      exitCriteria: input.project.stageExitCriteria.map((criterion) => ({
+        id: criterion.id,
+        label: criterion.label,
+        description: criterion.description,
+        statusLabel:
+          criterion.status === "passed" ? "已满足" : criterion.status === "failed" ? "未满足" : "待补齐",
+        blocking: criterion.blocking,
+      })),
+      transitionBlockReason: input.project.transitionBlockReason,
+      availableTransitions: input.project.availableTransitions.map((transition) => ({
+        id: transition.id,
+        toStageLabel: getLifecycleStageLabel(transition.toStage),
+        description: transition.description,
+      })),
     },
     metrics: input.realtime.kpis.metrics.map((metric) => ({
       id: metric.key,
@@ -152,19 +260,40 @@ export function buildProjectDetailViewModel(input: {
     decision: {
       problemOrOpportunity: input.project.decisionObject?.problemOrOpportunity ?? "暂无决策对象",
       rationale: input.project.decisionObject?.rationale ?? "等待经营大脑编译",
+      diagnosis: input.project.decisionObject?.diagnosis ?? "等待经营大脑诊断",
       confidenceLabel: getConfidenceLabel(input.project.decisionObject?.confidence ?? "medium"),
       requiresHumanApproval: input.project.decisionObject?.requiresHumanApproval ?? false,
       recommendedOptionTitle: recommendedOption?.title,
-      options:
-        input.project.decisionObject?.options.map((option) => ({
-          id: option.id,
-          title: option.title,
-          summary: option.summary,
-          expectedImpact: option.expectedImpact,
-          riskLabel: getRiskLabel(option.risk),
-          autoExecutableLabel: option.autoExecutable ? "可自动推进" : "需要人工判断",
+      recommendedActions:
+        input.project.decisionObject?.recommendedActions.map((action) => ({
+          actionId: action.actionId,
+          description: action.description,
+          owner: action.owner,
+          approvalLabel: action.requiredApproval ? "需要审批" : "可直接推进",
+          expectedMetric: `${action.expectedMetric} ${action.expectedDirection}`,
         })) ?? [],
       pendingQuestions: input.project.decisionObject?.pendingQuestions ?? [],
+    },
+    evidence: {
+      fact:
+        input.project.decisionContext?.evidencePack.factEvidence.map((ref) => ({
+          id: ref.id,
+          summary: ref.summary,
+          sourceLabel: ref.sourceLabel,
+          confidenceLabel: ref.confidence ? getConfidenceLabel(ref.confidence) : undefined,
+          updatedAtLabel: ref.updatedAtLabel,
+        })) ?? [],
+      method:
+        input.project.decisionContext?.evidencePack.methodEvidence.map((ref) => ({
+          id: ref.id,
+          summary: ref.summary,
+          sourceLabel: ref.sourceLabel,
+          confidenceLabel: ref.confidence ? getConfidenceLabel(ref.confidence) : undefined,
+          applicabilityLabel: ref.applicability
+            ? `${ref.applicability.stage[0]} · ${ref.applicability.businessGoal ?? "通用经营"}`
+            : undefined,
+        })) ?? [],
+      missingFlags: input.project.decisionContext?.evidencePack.missingEvidenceFlags ?? [],
     },
     decisionEvidence:
       input.project.decisionObject?.evidencePack.refs.map((ref) => ({
@@ -182,6 +311,10 @@ export function buildProjectDetailViewModel(input: {
       riskLabel: getRiskLabel(action.risk),
       layerLabel: getLayerLabel(action.triggeredBy),
       requiresHumanApproval: action.requiresHumanApproval,
+      actionVersion: action.actionVersion,
+      idempotencyKey: action.idempotencyKey,
+      writebackStatusLabel: getWritebackStatusLabel(action.writebackStatus),
+      lastWritebackError: action.lastWritebackError,
     })),
     executionTimeline: input.executionLogs.map((log) => ({
       id: log.id,
@@ -195,6 +328,25 @@ export function buildProjectDetailViewModel(input: {
             : "执行端",
       time: log.updatedAt.slice(11, 16),
     })),
+    audit: {
+      entries:
+        input.auditTrail?.entries.map((entry) => ({
+          id: entry.id,
+          summary: entry.summary,
+          actorLabel:
+            entry.actorType === "human"
+              ? "人工"
+              : entry.actorType === "agent"
+                ? "场景 Agent"
+                : entry.actorType === "automation"
+                  ? "执行端"
+                  : "系统",
+          time: entry.updatedAt.slice(11, 16),
+        })) ?? [],
+      latestWriteback: input.writebackRecord
+        ? `${getWritebackStatusLabel(input.writebackRecord.resultStatus)} · ${input.writebackRecord.targetSystem}`
+        : "暂无写回记录",
+    },
     agentLane: input.project.agentStates.map((agent) => ({
       id: agent.id,
       typeLabel: agent.agentType,
@@ -208,7 +360,7 @@ export function buildProjectDetailViewModel(input: {
       title: asset.title,
       summary: asset.summary,
       sourceInfo: asset.sourceInfo,
-      applicability: asset.applicability,
+      applicabilityLabel: formatApplicability(asset),
     })),
     review: input.review.review
       ? {
@@ -218,6 +370,9 @@ export function buildProjectDetailViewModel(input: {
           recommendations: input.review.review.recommendations,
           candidateCount: input.review.candidates.filter((candidate) => candidate.approvalStatus === "pending").length,
           publishedCount: input.review.publishedAssets.length,
+          lineageLabel: input.review.lineage
+            ? `决策 ${input.review.lineage.sourceDecisionIds.length} · 动作 ${input.review.lineage.sourceActionIds.length} · 日志 ${input.review.lineage.sourceExecutionLogIds.length}`
+            : "lineage 待补齐",
         }
       : null,
   };
