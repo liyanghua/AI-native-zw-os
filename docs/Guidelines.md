@@ -7,6 +7,15 @@
 - 布局默认使用 **flex / grid**，避免无必要的绝对定位。
 - 管理向界面：**信息密度适中**，段落与卡片留白一致，避免「纯数据表格感」。
 - 默认 **简体中文** 业务化文案；不在未要求时把已有中文改回英文。
+- 页面不得继续直接依赖页面内联业务 mock 作为主数据来源。
+- 新增页面数据必须优先经过 `domain types -> repository -> API` 的访问路径。
+- 项目详情页不得在前端临时拼装 `DecisionObject`，必须消费 server API 返回结果。
+- `EvidencePack` 必须显式区分 `factEvidence` 与 `methodEvidence`，不能混成一组展示。
+- 角色叙事必须围绕同一个 `projectId` 同源生成，不允许为老板 / 总监各自维护分裂的数据模型。
+- 角色页不得维护独立真相，所有角色页必须复用同一个 `projectId`。
+- Director archetype 必须通过 `RoleProfile` 明确定义，不能继续把所有总监收口成一个泛化 `director`。
+- 页面不得临时拼 role story 或 role dashboard 逻辑，必须消费 server compose 结果。
+- 代码实现与 `docs/` 文档必须同步更新，不能只改代码不改文档。
 
 ## 字体与排版（Typography）
 

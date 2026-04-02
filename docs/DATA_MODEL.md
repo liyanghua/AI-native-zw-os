@@ -16,6 +16,100 @@ The modeling goals are:
 This document defines the canonical data model for the prototype stage.
 核心用途：语义底座 + 对象骨架 + 状态协议 + AI/Agent 输出协议 + 页面复用基础 + 资产沉淀接口。
 
+### 1.1 Batch 2 已落地的 Local Sandbox 物理模型
+
+当前仓库在 canonical domain model 之下，已经落地了第一批本地 SQLite 表结构，用于承载 Local Pilot Sandbox：
+
+- `projects`
+- `project_snapshots`
+- `kpi_metrics`
+- `opportunities`
+- `risk_signals`
+- `ontology_entities`
+- `stage_rules`
+- `actions`
+- `reviews`
+- `asset_candidates`
+
+这些表当前由 `server/db/schema.mjs`、`server/db/init.mjs`、`server/db/seed.mjs` 管理，并通过本地 API 暴露给前端。
+
+已实现对象与字段收敛包括：
+
+- `ProjectStage = LifecycleStage`
+- `KpiMetric = KPIMetric`
+- `RiskSignal`
+- `Opportunity`
+- `ActionItem`
+- `ReviewSummary`
+- `AssetCandidate`
+
+其中：
+
+- 数据库内继续使用 canonical stage：`launch_validation`、`review_capture`
+- 页面展示允许映射成产品语义别名：`launch_verification`、`review_closed`
+- `review_closed` 当前落在 `review_capture + ProjectStatus.closed`
+
+### 1.2 Batch 2 已新增的 Local Sandbox 物理模型
+
+在 Batch 1 的基础上，当前仓库又增加了本地知识检索与决策编译所需的表结构：
+
+- `knowledge_assets`
+- `knowledge_chunks`
+- `knowledge_chunks_fts`
+- `knowledge_retrieval_logs`
+
+这些表同样由 `server/db/schema.mjs`、`server/db/init.mjs`、`server/db/seed.mjs` 管理，并由本地 API 驱动以下能力：
+
+- `POST /api/knowledge/search`
+- `GET /api/projects/:id/knowledge`
+- `POST /api/brain/compile-context`
+- `POST /api/brain/compile-decision`
+- `POST /api/brain/compile-role-story`
+
+当前已落地的 Batch 2 领域对象包括：
+
+- `KnowledgeAsset`
+- `KnowledgeChunk`
+- `KnowledgeSearchResult`
+- `EvidenceItem`
+- `EvidencePack`
+- `DecisionContext`
+- `DecisionObject`
+- `RecommendedAction`
+- `ValidationPlan`
+- `RoleStory`
+
+其中：
+
+- `EvidencePack` 当前已强制分为 `factEvidence` 与 `methodEvidence`
+- `DecisionObject` 当前已由 server API 编译后返回，不允许页面前端临时拼装
+- `RoleStory` 当前已扩展为 `boss | operations_director | product_rnd_director | visual_director`
+- `knowledge_chunks_fts` 属于实现细节表，用于 SQLite FTS5 检索
+
+### 1.3 Batch 3 新增的角色编排对象
+
+Batch 3 没有新增 SQLite 角色主表，而是在 server compose 层新增以下对象：
+
+- `RoleProfile`
+- `DirectorArchetype`
+- `RoleDashboardResponse`
+- `RoleProjectCard`
+- `RoleDecisionQueueItem`
+- `RoleRiskCard`
+- `RoleOpportunityCard`
+- `RoleAssetSummaryCard`
+
+这些对象用于：
+
+- `GET /api/roles/:role/dashboard`
+- 角色页摘要编排
+- 角色页到 `/project/:id` 的同源跳转
+
+注意：
+
+- 这些对象不是底层持久化主表，而是基于同一个 `projectId + decision + role story` 组合出来的 role compose object
+- `director` 当前仅保留为兼容 alias，映射到 `operations_director`
+
 ---
 
 ## 2. Core Design Principles
@@ -192,6 +286,23 @@ export type AssetType =
   | "skill"
   | "sop"
   | "evaluation_sample";
+```
+
+### 3.14.1 Role Type / Role Story Role
+
+```ts
+export type RoleType =
+  | "boss"
+  | "operations_director"
+  | "product_rnd_director"
+  | "visual_director";
+
+export type DirectorArchetype =
+  | "operations"
+  | "product_rnd"
+  | "visual";
+
+export type RoleStoryRole = RoleType;
 ```
 
 ### 3.15 Signal Freshness

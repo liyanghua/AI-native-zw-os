@@ -12,12 +12,53 @@
 
 ---
 
+## 1.1 当前实现形态：Local Pilot Sandbox
+
+当前仓库不是直接连企业真实系统，而是先落在一个 **Local Pilot Sandbox** 结构上：
+
+1. `server/db/*`
+   - 本地 SQLite schema / init / seed / query helper
+   - Batch 2 新增 knowledge tables、chunk、retrieval log 与 brain compile helper
+2. `server/api/*`
+   - 本地 Node API，当前暴露：
+     - `/api/projects`
+     - `/api/projects/:id`
+     - `/api/projects/:id/knowledge`
+     - `/api/knowledge/search`
+     - `/api/brain/compile-context`
+     - `/api/brain/compile-decision`
+     - `/api/brain/compile-role-story`
+     - `/api/roles/:role/dashboard`
+3. `src/data-access/localSandboxRepositories/*`
+   - API DTO 到前端 typed repository 的映射层
+   - Batch 2 新增 knowledge repository、brain repository、project workbench 聚合查询
+   - Batch 3 新增 roles repository 与 role dashboard 查询
+4. `src/data-access/PilotDataProvider.tsx`
+   - 组合根；当前为混合模式：
+     - `/lifecycle`、生命周期阶段页、`/project/:id` 走 API-backed repository
+     - 其余页面暂继续走现有 `pilotRuntime` / repository-first 原型链路
+5. `src/app/components/*`
+   - 页面只消费 typed repository result，不直接消费 SQL row，也不再直接依赖页面级业务 mock
+
+这使得当前已具备一条可替换的本地主线链路：
+
+`SQLite -> Knowledge Retrieval / Brain Compile / Role Composition -> Local API -> repository/query -> 项目页与角色页`
+
+其中：
+
+- `Knowledge Retrieval` 采用 SQLite FTS5 + 结构化 metadata 过滤的轻量 RAG
+- `Brain Compile` 在 server 层完成 `DecisionContext`、`DecisionObject`、`RoleStory` 的规则编译
+- `Role Composition` 在 server 层基于同一项目对象编译 `RoleDashboardResponse`
+- Agent / Execution 仍是后续批次的边界，不在 Batch 2 内实现
+
+---
+
 ## 2. Human Decision Layer
 
 这是管理前台层，面向四类角色（界面中文见侧栏顶栏）：
 
 - 老板 · 经营指挥台（`/boss`）
-- 产品研发总监台（`/product-director`）
+- 产品研发总监台（`/product-rnd-director`，兼容 `/product-director`）
 - 运营与营销总监台（`/operations-director`）
 - 视觉总监台（`/visual-director`）
 
@@ -163,23 +204,34 @@
 
 ---
 
-## 9. 技术实现建议（前端原型阶段）
+## 9. 技术实现建议（当前仓库）
 
 **当前仓库已采用：**
 
 - Vite + React + React Router（嵌套路由，根布局 `Layout` + `Outlet`）
 - Tailwind 4 + Radix 系 UI 组件
-- 页面级静态 / 局部 mock 展示（领域类型仍以 `docs/DATA_MODEL.md` 为归依）
+- repository-first 前端访问层
+- Local Pilot Sandbox：SQLite + Local API + API-backed repositories（Batch 1 仅覆盖部分页面）
 
-**仍建议逐步补强：**
+**当前已增加：**
 
-- typed mock schemas 与 `ProjectObject` 全量对齐
-- mock state machine for lifecycle
-- agent execution feed mock
-- live status polling mock or local reactive state
+- Knowledge / light RAG 层
+- Brain 决策编译 API
+- Role story API 边界
+- Role Composition / Role Dashboard 层
+- Director Archetypes：`operations_director`、`product_rnd_director`、`visual_director`
+
+**后续仍会增加：**
+
+- Agent 协同层
+- Execution / writeback 层
+- review / asset publish 主线
+- product_rnd_director / visual_director 的更完整领域深挖
 
 本阶段重点是：
 - 信息架构与路由与产品主线一致
-- 管理向界面可读、可走查
-- 组件可复用
-- 与 `DATA_MODEL.md` 的概念边界一致（实现可迭代落地）
+- 本地数据底座真实存在
+- 生命周期页和项目详情页脱离页面内联 mock
+- 项目详情页能展示项目、证据、决策与角色叙事
+- 角色页通过 role-aware composition 复用同一个 project / decision / role story 数据链路
+- 与 `DATA_MODEL.md` 的概念边界一致，并为后续批次留出可扩展接口

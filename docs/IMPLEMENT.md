@@ -13,6 +13,18 @@
 | 样式 | `src/styles/index.css`（`tailwind.css`、`theme.css`） |
 | 构建 | `package.json`：`npm run dev` / `npm run build` |
 
+### Batch 1 新增的本地沙箱底座
+
+| 项 | 位置 |
+|----|------|
+| SQLite schema / init / seed | `server/db/*` |
+| Local API | `server/api/*` |
+| API 运行脚本 | `npm run db:init` / `npm run db:seed` / `npm run api` |
+| API DTO | `src/domain/types/api.ts` |
+| API client | `src/data-access/apiClient.ts` |
+| API-backed repositories | `src/data-access/localSandboxRepositories/*` |
+| Batch 1 异步 query hook | `src/data-access/useRemoteQuery.ts` |
+
 以下为 **实现约定**：领域类型、ViewModel、集中 mock 等可按里程碑逐步引入 `src/domain/*`、`src/state/*`；**与 `DATA_MODEL.md` 对齐时以该文档为准**（本次未改 `DATA_MODEL.md`）。
 
 ---
@@ -76,7 +88,7 @@
 
 ### 5.2 产品研发总监台
 - 组件：`src/app/components/dashboards/ProductDirectorDashboard.tsx`
-- 路由：`/product-director`
+- 路由：`/product-rnd-director`（兼容 `/product-director`）
 
 ### 5.3 运营与营销总监台
 - 组件：`src/app/components/dashboards/OperationsDirectorDashboard.tsx`
@@ -141,7 +153,41 @@ When extending beyond the current prototype:
 
 ---
 
+## 7.1 本地运行方式
+
+1. 初始化数据库
+   - `npm run db:init`
+2. 写入演示数据
+   - `npm run db:seed`
+3. 启动本地 API
+   - `npm run api`
+4. 另开一个终端启动前端
+   - `npm run dev`
+
+前端开发环境下，Vite 会把 `/api/*` 代理到 `http://127.0.0.1:4318`。
+
+---
+
 ## 8. Progress Notes
+
+### 2026-04-02：Batch 2 本地知识检索与决策编译主线落地
+
+- **SQLite 扩展**：新增 `knowledge_assets`、`knowledge_chunks`、`knowledge_chunks_fts`、`knowledge_retrieval_logs`，通过 `server/db/schema.mjs` 与 `server/db/seed.mjs` 管理。
+- **知识 seed**：本地已写入 SOP、rule、case、template、evaluation sample，并在 seed 阶段完成 markdown chunk 化与 FTS 索引落表。
+- **Knowledge API**：新增 `POST /api/knowledge/search` 与 `GET /api/projects/:id/knowledge`，后端从 SQLite 检索知识并记录 retrieval log。
+- **Brain API**：新增 `POST /api/brain/compile-context`、`POST /api/brain/compile-decision`、`POST /api/brain/compile-role-story`；当前 compile 逻辑为 server 侧规则驱动 + 知识检索组合。
+- **repository 收口**：`localSandboxRepositories` 新增 knowledge / brain repository，`projects.getWorkbench(projectId)` 负责聚合项目详情、知识证据、decision context、decision object、boss/director role story。
+- **项目详情页升级**：`/project/:id` 现已展示 current problem、decision summary、recommended actions、fact / method evidence、missing evidence flags，以及 `boss` / `director` 的 role story 切换区。
+- **未纳入 Batch 2**：动作执行、审批流、Agent trigger、review generate、asset publish、老板 / 总监页主数据源迁移仍在后续批次。
+
+### 2026-04-02：Batch 3 角色闭环入口迁移落地
+
+- **Role Dashboard API**：新增 `GET /api/roles/:role/dashboard`，支持 `boss`、`operations_director`、`product_rnd_director`、`visual_director`，并兼容 `director -> operations_director` alias。
+- **Role repository / query**：`localSandboxRepositories` 新增 `rolesRepository`，角色页统一通过 `useRemoteQuery + sandboxRepositories.roles.getDashboard(role)` 获取数据。
+- **Server role-aware composition**：新增 role profile、director archetype、role dashboard compose object，服务端按角色生成不同摘要逻辑。
+- **页面迁移**：`/boss`、`/operations-director` 已正式迁到 API-backed role dashboard；`/product-rnd-director`、`/visual-director` 已接上 skeleton 页面；`/product-director` 保留兼容跳转。
+- **项目页联动**：`/project/:id` 当前支持 4 个 role story 切换，验证角色页与项目详情页围绕同一 `projectId` 同源。
+- **未纳入 Batch 3**：execution / writeback、review generate、asset publish、动作中心正式迁移仍留到 Batch 4。
 
 ### 2026-04-02：repository-first 收口与 source adapter 拆分
 
@@ -150,6 +196,14 @@ When extending beyond the current prototype:
 - **新增 query contract**：补 `src/domain/types/query.ts`，统一 `loading / error / stale / partial / lastUpdatedAt / issues[]`；核心页面通过 `QueryStatusPanel` 显式展示异常态和数据缺口。
 - **source adapter 拆分**：`pilotAdapter` 的 source ref 绑定已拆为 5 类 adapter：商机信号、商品定义、KPI 快照、审批/执行事件、复盘/资产。
 - **指标与故事线**：新增试点指标计算逻辑 `project_id_resolution_success_rate`、`cross_page_object_consistency_rate`、`decision_compile_success_rate`、`action_writeback_success_rate`、`review_to_asset_lineage_integrity_rate`，并接入老板视图；动作中心新增 decision-driven recommended actions 区域，项目页新增显式“编译上下文 / 编译决策”入口。
+
+### 2026-04-02：Batch 1 Local Pilot Sandbox 落地
+
+- **本地真实数据底座**：新增 `server/db/*` 与 `server/api/*`，默认数据库文件为 `data/pilot-sandbox.sqlite`。
+- **已落地 API**：`GET /api/projects`、`GET /api/projects/:id`。
+- **seed 数据**：3 个项目，分别覆盖首发验证、增长优化、复盘沉淀。
+- **前端切换范围**：`/lifecycle`、生命周期阶段页、`/project/:id` 已切到 API-backed repository；其他页面暂继续保留现有 runtime 链路。
+- **占位边界**：项目详情页明确展示 Brain / Knowledge / Agent / Execution 的 `Batch 2+` 占位块，不再伪装为已接通。
 
 ### 2026-04-02：V2 单线试点骨架落地
 

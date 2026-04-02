@@ -1,77 +1,74 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 import {
   AlertTriangle,
   ArrowLeft,
   Bot,
   Brain,
-  RefreshCw,
+  Database,
   Zap,
 } from "lucide-react";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
+import { useRemoteQuery } from "../../../data-access/useRemoteQuery";
+import { getRiskLabel, getRoleTypeLabel } from "../../../domain/runtime/labels";
+import type { RoleStoryRole } from "../../../domain/types/model";
 import { QueryStatusPanel } from "../ui/QueryStatusPanel";
-
-function toneClasses(tone: "positive" | "neutral" | "warning") {
-  if (tone === "positive") return "text-green-700 bg-green-50";
-  if (tone === "warning") return "text-orange-700 bg-orange-50";
-  return "text-slate-700 bg-slate-100";
-}
 
 export function ProjectDetail() {
   const { id } = useParams();
-  const {
-    repositories,
-    actions,
-  } = usePilotData();
+  const { sandboxRepositories } = usePilotData();
+  const [activeRole, setActiveRole] = useState<RoleStoryRole>("boss");
+
+  const { query, isLoading } = useRemoteQuery(
+    () => sandboxRepositories.projects.getWorkbench(id ?? ""),
+    [sandboxRepositories, id],
+    { pollMs: 45_000 },
+  );
 
   if (!id) {
-    return <div className="p-8 text-sm text-slate-600">缺少项目 ID。</div>;
+    return <ShellState title="缺少项目 ID" description="当前路由没有携带项目编号。" />;
   }
 
-  const query = repositories.projectWorkbench.getProjectDetail(id);
-  const viewModel = query.data.viewModel;
-  const collaborationSummary = query.data.collaborationSummary;
+  if (isLoading && !query) {
+    return <ShellState title="正在编译项目工作台..." description="正在从本地 API 拉取项目、证据、决策和角色叙事。" />;
+  }
+
+  if (!query) {
+    return <ShellState title="项目详情暂不可用" description="尚未收到项目 workbench 结果。" />;
+  }
+
+  const workbench = query.data;
+  const activeRoleStory = workbench.roleStories[activeRole];
+
+  if (query.error && workbench.project.priority === 0) {
+    return <ShellState title="项目详情暂不可用" description={query.error} />;
+  }
 
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <Link to="/lifecycle" className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900">
-            <ArrowLeft className="mr-2 size-4" />
-            返回生命周期总览
-          </Link>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold text-slate-900">{viewModel.project.name}</h1>
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-              {viewModel.project.stageLabel}
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              {viewModel.project.statusLabel}
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              {viewModel.project.healthLabel}
-            </span>
-            <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">
-              {viewModel.project.riskLabel}
-            </span>
-          </div>
-          <p className="max-w-4xl text-sm text-slate-600">{viewModel.project.statusSummary}</p>
+      <div className="space-y-2">
+        <Link to="/lifecycle" className="inline-flex items-center text-sm text-slate-600 hover:text-slate-900">
+          <ArrowLeft className="mr-2 size-4" />
+          返回生命周期总览
+        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold text-slate-900">{workbench.project.name}</h1>
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+            {workbench.project.stageLabel}
+          </span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+            {workbench.project.statusLabel}
+          </span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+            负责人 {workbench.project.owner}
+          </span>
+          <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">
+            优先级 {workbench.project.priority}
+          </span>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => actions.compileDecisionContext(viewModel.project.id)}
-            className="inline-flex items-center rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50"
-          >
-            <RefreshCw className="mr-2 size-4" />
-            编译上下文
-          </button>
-          <button
-            onClick={() => actions.compileDecisionObject(viewModel.project.id)}
-            className="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-          >
-            <RefreshCw className="mr-2 size-4" />
-            编译决策
-          </button>
-        </div>
+        <p className="max-w-4xl text-sm text-slate-600">
+          {workbench.latestSnapshot?.summary ?? "当前还没有最新项目快照。"}
+        </p>
       </div>
 
       <QueryStatusPanel
@@ -82,162 +79,114 @@ export function ProjectDetail() {
         issues={query.issues}
       />
 
-      <section className="grid grid-cols-4 gap-4">
-        {viewModel.metrics.map((metric) => (
-          <div key={metric.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-1 text-sm text-slate-500">{metric.label}</div>
-            <div className="mb-2 text-2xl font-semibold text-slate-900">{metric.value}</div>
-            <div className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${toneClasses(metric.tone)}`}>
-              {metric.helper}
+      <section className="grid grid-cols-3 gap-4">
+        <ContextCard label="当前问题" value={workbench.latestSnapshot?.currentProblem ?? "待补充"} />
+        <ContextCard label="当前目标" value={workbench.latestSnapshot?.currentGoal ?? "待补充"} />
+        <ContextCard label="当前风险" value={workbench.latestSnapshot?.currentRisk ?? "待补充"} />
+      </section>
+
+      <section className="grid grid-cols-3 gap-4">
+        {workbench.metrics.map((metric) => (
+          <div key={metric.key} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="text-sm text-slate-500">{metric.label}</div>
+            <div className="mt-2 text-2xl font-semibold text-slate-900">
+              {formatMetricValue(metric.value, metric.unit)}
+            </div>
+            <div className="mt-2 text-xs text-slate-500">
+              {metric.trend === "up" ? "趋势上升" : metric.trend === "down" ? "趋势下滑" : "趋势平稳"}
             </div>
           </div>
         ))}
       </section>
 
-      <section className="grid grid-cols-4 gap-4">
-        <LayerCard
-          icon={<AlertTriangle className="size-4 text-blue-600" />}
-          title="人工"
-          value={`${collaborationSummary.pendingHumanActions} 个待拍板`}
-          description="审批、取舍、风险判断"
-        />
-        <LayerCard
-          icon={<Brain className="size-4 text-violet-600" />}
-          title="经营大脑"
-          value={`${viewModel.evidence.fact.length + viewModel.evidence.method.length} 条证据`}
-          description={`推荐：${viewModel.decision.recommendedOptionTitle ?? "等待编译"}`}
-        />
-        <LayerCard
-          icon={<Bot className="size-4 text-emerald-600" />}
-          title="场景 Agent"
-          value={`${viewModel.agentLane.length} 个活跃角色`}
-          description="持续推进定义、诊断、视觉与复盘"
-        />
-        <LayerCard
-          icon={<Zap className="size-4 text-orange-600" />}
-          title="执行端"
-          value={`${collaborationSummary.runningExecutions} 个执行中`}
-          description={viewModel.audit.latestWriteback}
-        />
-      </section>
-
-      <div className="grid grid-cols-[0.8fr,1.2fr] gap-6">
+      <div className="grid grid-cols-[1.08fr,0.92fr] gap-6">
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">项目归一与状态机</h2>
-            <p className="mt-1 text-sm text-slate-500">围绕统一 projectId 观察来源、阶段出口条件和下一步可推进边界。</p>
+            <h2 className="text-lg font-semibold text-slate-900">决策摘要</h2>
+            <p className="mt-1 text-sm text-slate-500">Batch 2 已从真实项目数据和本地知识证据编译出结构化决策对象。</p>
           </div>
+
           <div className="rounded-xl bg-slate-50 p-4">
-            <div className="text-sm font-medium text-slate-900">
-              {viewModel.identitySummary.conflictLabel} · 置信度 {viewModel.identitySummary.confidenceLabel}
-            </div>
-            <div className="mt-2 text-sm text-slate-600">
-              来源 {viewModel.identitySummary.sourceCount} 个 · {viewModel.identitySummary.resolvedBy} 于{" "}
-              {viewModel.identitySummary.resolvedAt} 完成归一
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {viewModel.identitySummary.sources.map((source) => (
-                <span key={source.key} className="rounded-full bg-white px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-200">
-                  {source.label}
-                </span>
-              ))}
+            <div className="text-xs text-slate-500">当前最大问题</div>
+            <div className="mt-2 text-base font-medium text-slate-900">
+              {workbench.decision.decisionObject.problemOrOpportunity}
             </div>
           </div>
+
+          <ContextCard
+            label="Current diagnosis"
+            value={workbench.decision.decisionObject.diagnosis}
+          />
+
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard label="预期影响" value={workbench.decision.decisionObject.expectedImpact} />
+            <StatCard
+              label="审批要求"
+              value={
+                workbench.decision.decisionObject.approvalsRequired.length > 0
+                  ? `${workbench.decision.decisionObject.approvalsRequired.length} 项`
+                  : "无"
+              }
+            />
+            <StatCard
+              label="证据条数"
+              value={`${workbench.decision.evidencePack.factEvidence.length + workbench.decision.evidencePack.methodEvidence.length} 条`}
+            />
+          </div>
+
           <div className="space-y-3">
-            {viewModel.stageGovernance.exitCriteria.map((criterion) => (
-              <div key={criterion.id} className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-center justify-between gap-3">
+            {workbench.decision.decisionObject.recommendedActions.map((action) => (
+              <div key={action.actionId} className="rounded-xl border border-slate-200 p-4">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="font-medium text-slate-900">{criterion.label}</div>
-                    <div className="mt-1 text-sm text-slate-600">{criterion.description}</div>
+                    <div className="font-medium text-slate-900">{action.description}</div>
+                    <div className="mt-2 text-sm text-slate-600">
+                      {action.owner} · 关注 {action.expectedMetric}
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      {action.requiredApproval ? "需要审批" : "无需审批"} · 置信度 {action.confidence}
+                    </div>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                    {criterion.statusLabel}
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                    {action.expectedDirection}
                   </span>
                 </div>
               </div>
             ))}
           </div>
-          {viewModel.stageGovernance.transitionBlockReason && (
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
-              当前不能推进下一阶段：{viewModel.stageGovernance.transitionBlockReason}
-            </div>
-          )}
-          {viewModel.stageGovernance.availableTransitions.length > 0 && (
-            <div className="rounded-xl border border-slate-200 p-4">
-              <div className="mb-2 text-sm font-medium text-slate-900">可推进阶段</div>
-              <div className="flex flex-wrap gap-2">
-                {viewModel.stageGovernance.availableTransitions.map((transition) => (
-                  <span key={transition.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                    {transition.toStageLabel}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
 
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">决策对象</h2>
-            <p className="mt-1 text-sm text-slate-500">{viewModel.decision.problemOrOpportunity}</p>
+            <h2 className="text-lg font-semibold text-slate-900">Role Story</h2>
+            <p className="mt-1 text-sm text-slate-500">同一个 `projectId` 在老板、运营、产品、视觉视角下编译出不同叙事，但仍保持同源。</p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
-            {viewModel.decision.rationale}
-          </div>
-          <div className="rounded-xl border border-slate-200 p-4">
-            <div className="text-sm font-medium text-slate-900">诊断</div>
-            <div className="mt-2 text-sm text-slate-600">{viewModel.decision.diagnosis}</div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-xl border border-slate-200 p-4">
-              <div className="text-xs text-slate-500">编译时间</div>
-              <div className="mt-2 text-sm font-medium text-slate-900">{viewModel.decision.compiledAtLabel}</div>
-            </div>
-            <div className="rounded-xl border border-slate-200 p-4">
-              <div className="text-xs text-slate-500">预期影响</div>
-              <div className="mt-2 text-sm font-medium text-slate-900">{viewModel.decision.expectedImpact}</div>
-            </div>
-            <div className="rounded-xl border border-slate-200 p-4">
-              <div className="text-xs text-slate-500">审批要求</div>
-              <div className="mt-2 text-sm font-medium text-slate-900">
-                {viewModel.decision.approvalsRequired.length > 0
-                  ? `${viewModel.decision.approvalsRequired.length} 项`
-                  : "无"}
-              </div>
-            </div>
-          </div>
-          {viewModel.decision.approvalsRequired.length > 0 && (
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-              <div className="mb-2 text-sm font-medium text-orange-900">审批要求</div>
-              <ul className="space-y-1 text-sm text-orange-800">
-                {viewModel.decision.approvalsRequired.map((approval) => (
-                  <li key={approval}>• {approval}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {viewModel.decision.pendingQuestions.length > 0 && (
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-              <div className="mb-2 text-sm font-medium text-orange-900">待回答问题</div>
-              <ul className="space-y-1 text-sm text-orange-800">
-                {viewModel.decision.pendingQuestions.map((question) => (
-                  <li key={question}>• {question}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            {viewModel.decision.recommendedActions.map((action) => (
-              <div key={action.actionId} className="rounded-xl border border-slate-200 p-4">
-                <div className="font-medium text-slate-900">{action.description}</div>
-                <div className="mt-2 text-sm text-slate-600">{action.owner}</div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {action.approvalLabel} · {action.expectedMetric}
-                </div>
-              </div>
+
+          <div className="inline-flex rounded-xl bg-slate-100 p-1">
+            {(["boss", "operations_director", "product_rnd_director", "visual_director"] as RoleStoryRole[]).map((role) => (
+              <button
+                key={role}
+                onClick={() => setActiveRole(role)}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  activeRole === role
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {getRoleTypeLabel(role)}
+              </button>
             ))}
           </div>
+
+          <div className="rounded-xl bg-slate-50 p-4">
+            <div className="text-sm text-slate-500">story summary</div>
+            <div className="mt-2 text-sm text-slate-800">{activeRoleStory.storySummary}</div>
+          </div>
+
+          <ListCard title="top issues" items={activeRoleStory.topIssues} />
+          <ListCard title="key decisions" items={activeRoleStory.keyDecisions} />
+          <ListCard title="pending approvals" items={activeRoleStory.pendingApprovals} emptyLabel="当前没有待审批项" />
+          <ListCard title="recent outcomes" items={activeRoleStory.recentOutcomes} />
         </section>
       </div>
 
@@ -245,18 +194,16 @@ export function ProjectDetail() {
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">事实证据</h2>
-            <p className="mt-1 text-sm text-slate-500">KPI、审批、执行与异常，直接回答“现在发生了什么”。</p>
+            <p className="mt-1 text-sm text-slate-500">来自项目快照、KPI、风险、商机和历史动作的真实输入。</p>
           </div>
           <div className="space-y-3">
-            {viewModel.evidence.fact.map((evidence) => (
-              <div key={evidence.id} className="rounded-xl border border-slate-200 p-4">
-                <div className="text-sm font-medium text-slate-900">{evidence.summary}</div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {evidence.sourceLabel ?? "事实证据"}
-                  {evidence.updatedAtLabel ? ` · ${evidence.updatedAtLabel}` : ""}
-                  {evidence.confidenceLabel ? ` · 置信度 ${evidence.confidenceLabel}` : ""}
-                </div>
-              </div>
+            {workbench.decision.evidencePack.factEvidence.map((evidence) => (
+              <EvidenceCard
+                key={evidence.id}
+                title={evidence.summary}
+                subtitle={evidence.sourceLabel}
+                helper={evidence.updatedAtLabel}
+              />
             ))}
           </div>
         </section>
@@ -264,220 +211,203 @@ export function ProjectDetail() {
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">方法证据</h2>
-            <p className="mt-1 text-sm text-slate-500">SOP、规则、案例和模板，回答“为什么这么做”。</p>
+            <p className="mt-1 text-sm text-slate-500">来自本地知识库检索出的 SOP / case / rule / template / evaluation sample。</p>
           </div>
           <div className="space-y-3">
-            {viewModel.evidence.method.map((evidence) => (
-              <div key={evidence.id} className="rounded-xl bg-blue-50 p-4">
-                <div className="text-sm font-medium text-slate-900">{evidence.summary}</div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {evidence.sourceLabel ?? "方法证据"}
-                  {evidence.applicabilityLabel ? ` · ${evidence.applicabilityLabel}` : ""}
-                  {evidence.confidenceLabel ? ` · 置信度 ${evidence.confidenceLabel}` : ""}
-                </div>
-              </div>
+            {workbench.decision.evidencePack.methodEvidence.map((evidence) => (
+              <EvidenceCard
+                key={evidence.id}
+                title={evidence.summary}
+                subtitle={evidence.sourceLabel}
+                helper={evidence.applicability?.businessGoal}
+                tone="method"
+              />
             ))}
-            {viewModel.evidence.missingFlags.length > 0 && (
-              <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-                <div className="mb-2 text-sm font-medium text-orange-900">证据缺口</div>
-                <ul className="space-y-1 text-sm text-orange-800">
-                  {viewModel.evidence.missingFlags.map((flag) => (
-                    <li key={flag}>• {flag}</li>
-                  ))}
-                </ul>
-              </div>
+            {workbench.decision.evidencePack.missingEvidenceFlags.length > 0 && (
+              <ListCard
+                title="missing evidence flags"
+                items={workbench.decision.evidencePack.missingEvidenceFlags}
+              />
             )}
           </div>
         </section>
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="grid grid-cols-[1.05fr,0.95fr] gap-6">
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">动作与回写</h2>
-            <p className="mt-1 text-sm text-slate-500">动作版本、幂等键、写回状态和异常信息都在这里显式展示。</p>
+            <h2 className="text-lg font-semibold text-slate-900">风险与商机输入</h2>
+            <p className="mt-1 text-sm text-slate-500">这些输入仍然来自项目真实数据，而不是决策层假拼装。</p>
           </div>
-        </div>
-        <div className="space-y-3">
-          {viewModel.actions.map((action) => (
-            <div key={action.id} className="rounded-xl border border-slate-200 p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="font-medium text-slate-900">{action.title}</div>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{action.layerLabel}</span>
-                    <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700">{action.riskLabel}</span>
-                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">v{action.actionVersion}</span>
-                  </div>
-                  <p className="text-sm text-slate-600">{action.summary}</p>
-                  <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span>{action.approvalLabel}</span>
-                    <span>·</span>
-                    <span>{action.executionLabel}</span>
-                    <span>·</span>
-                    <span>{action.writebackStatusLabel}</span>
-                    <span>·</span>
-                    <span>{action.idempotencyKey}</span>
-                  </div>
-                  {action.lastWritebackError && (
-                    <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-                      {action.lastWritebackError}
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {action.approvalLabel === "待审批" && (
-                    <>
-                      <button
-                        onClick={() => actions.rejectAction(action.id, "当前优先验证主图方案")}
-                        className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
-                      >
-                        拒绝
-                      </button>
-                      <button
-                        onClick={() => actions.approveAction(action.id)}
-                        className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                      >
-                        批准
-                      </button>
-                    </>
-                  )}
-                  {(action.executionLabel === "排队中" || action.executionLabel === "执行中") && (
-                    <button
-                      onClick={() =>
-                        actions.writeExecutionResult(action.id, {
-                          actorId: "automation.executor",
-                          actorType: "automation",
-                          status: "completed",
-                          summary: `${action.title} 已完成并回写核心结果。`,
-                          idempotencyKey: action.idempotencyKey,
-                          targetSystem: "pilot.executor",
-                          targetObjectId: action.id,
-                        })
-                      }
-                      className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                    >
-                      写回完成
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      <div className="grid grid-cols-[1fr,0.9fr] gap-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">执行时间线</h2>
-          <div className="mt-4 space-y-3">
-            {viewModel.executionTimeline.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-4">
-                <div className="mt-0.5 h-2 w-2 rounded-full bg-blue-500" />
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-slate-900">{item.summary}</div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {item.actorLabel} · {item.statusLabel} · {item.time}
+          <div className="space-y-3">
+            {workbench.risks.length === 0 ? (
+              <EmptyCard title="暂无风险信号" description="当前项目还没有写入风险输入。" />
+            ) : (
+              workbench.risks.map((risk) => (
+                <div key={risk.riskId} className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="font-medium text-orange-900">{risk.description}</div>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-orange-700">
+                      {getRiskLabel(risk.riskLevel)}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs text-orange-800">{risk.riskType}</div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {workbench.opportunities.length === 0 ? (
+              <EmptyCard title="暂无商机输入" description="当前项目还没有写入商机信号。" />
+            ) : (
+              workbench.opportunities.map((opportunity) => (
+                <div key={opportunity.opportunityId} className="rounded-xl border border-slate-200 p-4">
+                  <div className="font-medium text-slate-900">{opportunity.title}</div>
+                  <div className="mt-2 text-sm text-slate-600">{opportunity.description}</div>
+                  <div className="mt-2 text-xs text-slate-500">
+                    {opportunity.signalType} · 优先级 {opportunity.priority}
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">审批与审计</h2>
-          <div className="mt-4 space-y-3">
-            {viewModel.audit.entries.map((entry) => (
-              <div key={entry.id} className="rounded-xl border border-slate-200 p-4">
-                <div className="text-sm font-medium text-slate-900">{entry.summary}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {entry.actorLabel} · {entry.time}
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">后续闭环占位</h2>
+            <p className="mt-1 text-sm text-slate-500">Batch 2 已打通知识与决策，但 Agent / Execution 仍留在后续批次。</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {workbench.placeholderBlocks.map((block) => (
+              <div key={block.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 flex items-center gap-2 text-slate-700">
+                  {iconForPlaceholder(block.id)}
+                  <span className="font-medium">{block.title}</span>
                 </div>
+                <div className="text-sm text-slate-600">{block.description}</div>
+                <div className="mt-3 text-xs text-slate-500">{block.statusLabel}</div>
               </div>
             ))}
           </div>
-        </section>
-      </div>
-
-      <div className="grid grid-cols-[1fr,0.9fr] gap-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">知识资产</h2>
-          <div className="mt-4 space-y-3">
-            {viewModel.knowledgeHighlights.map((asset) => (
-              <div key={asset.id} className="rounded-xl bg-blue-50 p-4">
-                <div className="mb-1 text-xs font-medium text-blue-700">{asset.typeLabel}</div>
-                <div className="font-medium text-slate-900">{asset.title}</div>
-                <div className="mt-1 text-sm text-slate-700">{asset.summary}</div>
-                <div className="mt-2 text-xs text-slate-500">
-                  {asset.sourceInfo} · {asset.applicabilityLabel}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">复盘与资产 lineage</h2>
-          {viewModel.review ? (
-            <div className="mt-4 space-y-4">
-              <div className="rounded-xl bg-blue-50 p-4">
-                <div className="text-sm font-medium text-blue-900">{viewModel.review.verdictLabel}</div>
-                <div className="mt-2 text-sm text-slate-700">{viewModel.review.resultSummary}</div>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
-                {viewModel.review.lineageLabel}
-              </div>
-              <div>
-                <div className="mb-2 text-sm font-medium text-slate-900">经验总结</div>
-                <ul className="space-y-1 text-sm text-slate-600">
-                  {viewModel.review.lessonsLearned.map((lesson) => (
-                    <li key={lesson}>• {lesson}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <div className="mb-2 text-sm font-medium text-slate-900">下一轮建议</div>
-                <ul className="space-y-1 text-sm text-slate-600">
-                  {viewModel.review.recommendations.map((recommendation) => (
-                    <li key={recommendation}>• {recommendation}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4 text-sm text-slate-600">
-                待确认资产 {viewModel.review.candidateCount} 个 · 已入库资产 {viewModel.review.publishedCount} 个
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-              当前项目还在执行中，复盘沉淀会在回写结果后自动补齐。
-            </div>
-          )}
         </section>
       </div>
     </div>
   );
 }
 
-function LayerCard({
-  icon,
-  title,
-  value,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  value: string;
-  description: string;
-}) {
+function formatMetricValue(value: number, unit?: "%" | "currency" | "count" | "score") {
+  if (unit === "currency") {
+    return `¥${value.toLocaleString("zh-CN")}`;
+  }
+  if (unit === "%") {
+    return `${value}%`;
+  }
+  return `${value}`;
+}
+
+function ContextCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
-        {icon}
-        {title}
-      </div>
-      <div className="text-xl font-semibold text-slate-900">{value}</div>
-      <div className="mt-1 text-sm text-slate-500">{description}</div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="text-sm text-slate-500">{label}</div>
+      <div className="mt-2 text-base text-slate-800">{value}</div>
     </div>
   );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-4">
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className="mt-2 text-sm font-medium text-slate-900">{value}</div>
+    </div>
+  );
+}
+
+function EvidenceCard({
+  title,
+  subtitle,
+  helper,
+  tone = "fact",
+}: {
+  title: string;
+  subtitle?: string;
+  helper?: string;
+  tone?: "fact" | "method";
+}) {
+  return (
+    <div className={`rounded-xl border p-4 ${tone === "method" ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
+      <div className="text-sm font-medium text-slate-900">{title}</div>
+      {(subtitle || helper) && (
+        <div className="mt-2 text-xs text-slate-500">
+          {subtitle ?? ""}
+          {subtitle && helper ? " · " : ""}
+          {helper ?? ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ListCard({
+  title,
+  items,
+  emptyLabel = "当前没有内容",
+}: {
+  title: string;
+  items: string[];
+  emptyLabel?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-4">
+      <div className="text-sm font-medium text-slate-900">{title}</div>
+      {items.length === 0 ? (
+        <div className="mt-2 text-sm text-slate-500">{emptyLabel}</div>
+      ) : (
+        <ul className="mt-2 space-y-2 text-sm text-slate-700">
+          {items.map((item) => (
+            <li key={item}>• {item}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function EmptyCard({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-200 p-4">
+      <div className="font-medium text-slate-900">{title}</div>
+      <div className="mt-2 text-sm text-slate-500">{description}</div>
+    </div>
+  );
+}
+
+function ShellState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+        <p className="mt-2 text-sm text-slate-600">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function iconForPlaceholder(id: string) {
+  if (id === "agent") {
+    return <Bot className="size-4" />;
+  }
+  if (id === "execution") {
+    return <Zap className="size-4" />;
+  }
+  if (id === "brain") {
+    return <Brain className="size-4" />;
+  }
+  if (id === "knowledge") {
+    return <Database className="size-4" />;
+  }
+  return <AlertTriangle className="size-4" />;
 }

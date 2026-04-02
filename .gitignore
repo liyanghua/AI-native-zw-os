@@ -26,3 +26,5 @@ Thumbs.db
 
 # Local scratch
 .tmp-tests/
+data/*.sqlite
+data/*.sqlite-*

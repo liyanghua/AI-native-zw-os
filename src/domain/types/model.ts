@@ -6,6 +6,8 @@ export type LifecycleStage =
   | "legacy_upgrade"
   | "review_capture";
 
+export type ProjectStage = LifecycleStage;
+
 export type ProjectType =
   | "opportunity_project"
   | "new_product_project"
@@ -17,6 +19,17 @@ export type RoleView =
   | "product_rd_director"
   | "growth_director"
   | "visual_director";
+
+export type RoleType =
+  | "boss"
+  | "operations_director"
+  | "product_rnd_director"
+  | "visual_director";
+
+export type DirectorArchetype =
+  | "operations"
+  | "product_rnd"
+  | "visual";
 
 export type ProjectHealth =
   | "healthy"
@@ -143,6 +156,9 @@ export type AssetType =
   | "sop"
   | "evaluation_sample";
 
+export type RoleStoryRole = RoleType;
+export type KnowledgeRole = RoleType | "all";
+
 export type SignalFreshness =
   | "real_time"
   | "near_real_time"
@@ -207,6 +223,8 @@ export interface KPISet {
   updatedAt: string;
 }
 
+export type KpiMetric = KPIMetric;
+
 export interface ApplicabilitySpec {
   stage: LifecycleStage[];
   role: RoleView[];
@@ -226,6 +244,10 @@ export interface EvidenceRef extends EntityMeta {
     | "history"
     | "case"
     | "rule"
+    | "template"
+    | "sop"
+    | "evaluation_sample"
+    | "skill"
     | "agent_observation"
     | "user_feedback"
     | "competitive_scan";
@@ -237,6 +259,8 @@ export interface EvidenceRef extends EntityMeta {
   updatedAtLabel?: string;
   applicability?: ApplicabilitySpec;
 }
+
+export type EvidenceItem = EvidenceRef;
 
 export interface EvidencePack {
   factEvidence: EvidenceRef[];
@@ -294,6 +318,7 @@ export interface DecisionContext extends EntityMeta {
 }
 
 export interface DecisionObject extends EntityMeta {
+  decisionId: string;
   projectId: string;
   stage: LifecycleStage;
   decisionVersion: number;
@@ -340,6 +365,25 @@ export interface OpportunityAssessment {
   expressionPotentialScore: number;
   confidence: ConfidenceLevel;
   recommendation: "ignore" | "observe" | "evaluate" | "initiate";
+}
+
+export interface Opportunity {
+  opportunityId: string;
+  projectId: string;
+  title: string;
+  signalType: string;
+  description: string;
+  priority: number;
+  createdAt: string;
+}
+
+export interface RiskSignal {
+  riskId: string;
+  projectId: string;
+  riskType: string;
+  riskLevel: RiskLevel;
+  description: string;
+  createdAt: string;
 }
 
 export interface ProductDefinition extends EntityMeta {
@@ -620,6 +664,8 @@ export interface AssetCandidate extends EntityMeta {
   rationale: string;
   approvalStatus: ApprovalStatus;
   applicability: ApplicabilitySpec;
+  contentMarkdown?: string;
+  status?: string;
 }
 
 export interface AssetLineage {
@@ -730,6 +776,133 @@ export interface KnowledgeAssetDocument extends PublishedAsset {
   applicability: ApplicabilitySpec;
   sourceInfo: string;
   lineage?: AssetLineage;
+}
+
+export interface KnowledgeAsset extends EntityMeta {
+  assetId: string;
+  title: string;
+  assetType: AssetType;
+  stage: LifecycleStage;
+  role: KnowledgeRole;
+  sourceProjectId?: string;
+  applicability: ApplicabilitySpec;
+  contentMarkdown: string;
+}
+
+export interface KnowledgeChunk {
+  chunkId: string;
+  assetId: string;
+  chunkText: string;
+  chunkIndex: number;
+  keywords: string[];
+  stage: LifecycleStage;
+  role: KnowledgeRole;
+  assetType: AssetType;
+}
+
+export interface KnowledgeSearchResult {
+  projectId?: string;
+  query: string;
+  matchedAssets: KnowledgeAsset[];
+  matchedChunks: KnowledgeChunk[];
+  retrievalTrace: string[];
+  resultCount: number;
+  generatedAt: string;
+}
+
+export interface RoleStory {
+  role: RoleStoryRole;
+  projectId: string;
+  storySummary: string;
+  topIssues: string[];
+  keyDecisions: string[];
+  recommendedActions: RecommendedAction[];
+  pendingApprovals: string[];
+  recentOutcomes: string[];
+}
+
+export interface RoleProfile {
+  roleId: string;
+  roleType: RoleType;
+  roleName: string;
+  directorArchetype?: DirectorArchetype;
+  goalFocus: string;
+  primaryObjects: string[];
+  decisionScope: string[];
+  evidencePreference: string[];
+  actionScope: string[];
+  summaryStyle: string;
+}
+
+export interface RoleProjectCard {
+  projectId: string;
+  projectName: string;
+  stage: LifecycleStage;
+  status: ProjectStatus;
+  headlineProblem: string;
+  headlineOpportunity: string;
+  headlineRisk: string;
+  primaryRecommendation: string;
+  updatedAt: string;
+}
+
+export interface RoleDecisionQueueItem {
+  decisionId: string;
+  projectId: string;
+  projectName: string;
+  summary: string;
+  requiredOwner: string;
+  requiredAction: string;
+  requiresApproval: boolean;
+  updatedAt: string;
+}
+
+export interface RoleRiskCard {
+  projectId: string;
+  projectName: string;
+  riskLevel: RiskLevel;
+  riskSummary: string;
+  recommendation: string;
+  updatedAt: string;
+}
+
+export interface RoleOpportunityCard {
+  projectId: string;
+  projectName: string;
+  opportunitySummary: string;
+  whyNow: string;
+  updatedAt: string;
+}
+
+export interface RoleAssetSummaryCard {
+  assetId: string;
+  title: string;
+  assetType: AssetType;
+  summary: string;
+  sourceProjectId?: string;
+  updatedAt: string;
+}
+
+export interface RoleDashboardMetric {
+  label: string;
+  value: string;
+}
+
+export interface RoleDashboardSummary {
+  headline: string;
+  narrative: string;
+  metrics: RoleDashboardMetric[];
+}
+
+export interface RoleDashboardResponse {
+  role: RoleType;
+  roleProfile: RoleProfile;
+  summary: RoleDashboardSummary;
+  projectCards: RoleProjectCard[];
+  decisionQueue: RoleDecisionQueueItem[];
+  riskCards: RoleRiskCard[];
+  opportunityCards: RoleOpportunityCard[];
+  assetSummary: RoleAssetSummaryCard[];
 }
 
 export interface ProjectReviewRecord {

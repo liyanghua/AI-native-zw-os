@@ -10,6 +10,7 @@ import type {
   ProjectStatus,
   ReviewVerdict,
   RiskLevel,
+  RoleType,
   RoleView,
   SignalFreshness,
   WritebackStatus,
@@ -28,6 +29,13 @@ const roleLabels: Record<RoleView, string> = {
   ceo: "老板",
   product_rd_director: "产品研发总监",
   growth_director: "运营与营销总监",
+  visual_director: "视觉总监",
+};
+
+const roleTypeLabels: Record<RoleType, string> = {
+  boss: "老板",
+  operations_director: "运营与营销总监",
+  product_rnd_director: "产品研发总监",
   visual_director: "视觉总监",
 };
 
@@ -127,6 +135,10 @@ export function getLifecycleStageLabel(stage: LifecycleStage) {
 
 export function getRoleLabel(role: RoleView) {
   return roleLabels[role];
+}
+
+export function getRoleTypeLabel(role: RoleType) {
+  return roleTypeLabels[role];
 }
 
 export function getHealthLabel(health: ProjectHealth) {

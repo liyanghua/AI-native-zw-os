@@ -9,6 +9,46 @@
 它不是传统 BI 看板，不是普通项目管理工具，也不是单个聊天助手前台。
 它的目标是把企业围绕商品经营的主线——从商机发现、开新品、首发验证、增长优化、老品升级，到复盘沉淀——统一到一个系统里。
 
+### 当前实现阶段：Local Pilot Sandbox / Batch 3
+
+当前仓库已经从“页面级 mock 原型”升级为**本地单机闭环沙箱**的第三批实现：
+
+- 本地 SQLite 数据底座已落地，数据库文件默认位于 `data/pilot-sandbox.sqlite`
+- 已实现本地 Node API：
+  - `GET /api/projects`
+  - `GET /api/projects/:id`
+  - `GET /api/projects/:id/knowledge`
+  - `POST /api/knowledge/search`
+  - `POST /api/brain/compile-context`
+  - `POST /api/brain/compile-decision`
+  - `POST /api/brain/compile-role-story`
+  - `GET /api/roles/:role/dashboard`
+- 已 seed 3 个演示项目，用于演示首发验证、增长优化、复盘沉淀
+- 已 seed 本地知识资产与 chunk，用于 SOP / rule / case / template / evaluation sample 检索
+- 生命周期总览 / 生命周期阶段页 / 项目详情页已经切换为 `SQLite -> API -> repository -> UI`
+- 项目详情页已经升级为“项目 + 证据 + 决策”页面，可展示：
+  - fact evidence
+  - method evidence
+  - 结构化 `DecisionObject`
+  - `boss` / `operations_director` / `product_rnd_director` / `visual_director` 的同源 `RoleStory`
+- 角色首页已从泛化 dashboard 升级为基于角色原型的同源闭环入口：
+  - `boss` 已正式迁移
+  - `operations_director` 已正式迁移
+  - `product_rnd_director` / `visual_director` 已有 API-backed 框架页
+- 其他页面仍保留现有 `pilotRuntime` / repository-first 原型能力，作为后续批次迁移对象
+
+当前**尚未实现**：
+
+- 向量数据库 / embedding pipeline
+- Agent trigger
+- 执行 writeback
+- review generate
+- asset publish
+- 完整动作中心与审批流
+- 更完整的 product_rnd_director / visual_director 角色深度编排
+
+也就是说，Batch 3 的目标是把**角色闭环入口**建立起来，而不是假装执行、回写和资产闭环已经全量接通。
+
 系统中的职责分工如下：
 
 - 人类管理者负责：方向、取舍、审批、学习

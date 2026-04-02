@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { Navigate, createBrowserRouter } from "react-router";
 import { Layout } from "./components/layout/Layout";
 import { BossDashboard } from "./components/dashboards/BossDashboard";
 import { ProductDirectorDashboard } from "./components/dashboards/ProductDirectorDashboard";
@@ -17,6 +17,10 @@ import { ReviewAndAssets } from "./components/review/ReviewAndAssets";
 import { AssetLibrary } from "./components/assets/AssetLibrary";
 import { NotFound } from "./components/NotFound";
 
+function LegacyProductDirectorRedirect() {
+  return <Navigate to="/product-rnd-director" replace />;
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -24,7 +28,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: BossDashboard },
       { path: "boss", Component: BossDashboard },
-      { path: "product-director", Component: ProductDirectorDashboard },
+      { path: "product-rnd-director", Component: ProductDirectorDashboard },
+      { path: "product-director", Component: LegacyProductDirectorRedirect },
       { path: "operations-director", Component: OperationsDirectorDashboard },
       { path: "visual-director", Component: VisualDirectorDashboard },
       { path: "lifecycle", Component: LifecycleOverview },

@@ -28,6 +28,38 @@
 
 ---
 
+## 1.1 Batch 3 数据来源边界
+
+当前页面按两类数据源运行：
+
+### 已切换到 SQLite / Local API / repository 的页面
+
+- `/boss`
+- `/operations-director`
+- `/product-rnd-director`
+- `/visual-director`
+- `/lifecycle`
+- `/opportunity-pool`
+- `/new-product-incubation`
+- `/launch-verification`
+- `/growth-optimization`
+- `/project/:id`
+
+这些页面走：
+
+`SQLite -> Local Node API -> localSandboxRepositories -> useRemoteQuery -> UI`
+
+### 仍保留现有 in-memory / pilotRuntime 的页面
+
+- `/action-center`
+- `/risk-approval`
+- `/review-assets`
+- `/asset-library`
+
+这些页面属于后续批次迁移对象。
+
+---
+
 ## 2. Role Views（顶部角色切换）
 
 与代码中 `roles` 一致；切换角色会 `navigate` 到对应路径：
@@ -35,9 +67,13 @@
 | id | 中文 | 路径 |
 |----|------|------|
 | boss | 老板 | `/boss` |
-| product | 产品研发总监 | `/product-director` |
+| product | 产品研发总监 | `/product-rnd-director` |
 | operations | 运营与营销总监 | `/operations-director` |
 | visual | 视觉总监 | `/visual-director` |
+
+兼容路径：
+
+- `/product-director` → `/product-rnd-director`
 
 角色视图改变默认进入的「指挥台」页面及顶部强调点，不改变产品与 `DATA_MODEL.md` 中的底层对象定义。
 
@@ -56,14 +92,17 @@ Goal:
 - show organization and AI efficiency
 
 Core models:
-- `PulseBundle`
-- `ProjectObject[]`
-- `ActionItem[]`
-- `ExceptionItem[]`
+- Batch 3：`GET /api/roles/boss/dashboard`
+- `RoleDashboardResponse`
+- `RoleProjectCard[]`
+- `RoleDecisionQueueItem[]`
+- `RoleRiskCard[]`
+- `RoleOpportunityCard[]`
+- `RoleAssetSummaryCard[]`
 
 ---
 
-### 3.2 Product R&D Director Desk（`/product-director`）
+### 3.2 Product R&D Director Desk（`/product-rnd-director`，兼容 `/product-director`）
 
 Goal:
 - review opportunity pool
@@ -73,11 +112,9 @@ Goal:
 - review legacy upgrade opportunities
 
 Core models:
-- `PulseBundle`
-- `ProjectObject[]`
-- `DecisionObject`
-- `ProductDefinition`
-- `SamplingReview`
+- Batch 3：`GET /api/roles/product_rnd_director/dashboard`
+- `RoleDashboardResponse`
+- 当前为 API-backed skeleton：`summary + projectCards + decisionQueue`
 
 ---
 
@@ -93,12 +130,12 @@ Goal:
 注：原型侧栏文案为「运营与营销总监」，与 README 中「运营&营销总监」一致。
 
 Core models:
-- `PulseBundle`
-- `ProjectObject[]`
-- `ActionItem[]`
-- `ExceptionItem[]`
-- `AgentState[]`
-- `ProjectRealtimeSnapshot`
+- Batch 3：`GET /api/roles/operations_director/dashboard`
+- `RoleDashboardResponse`
+- `RoleProjectCard[]`
+- `RoleDecisionQueueItem[]`
+- `RoleRiskCard[]`
+- `RoleOpportunityCard[]`
 
 ---
 
@@ -111,11 +148,9 @@ Goal:
 - track template reuse and visual asset quality
 
 Core models:
-- `PulseBundle`
-- `ProjectObject[]`
-- `ExpressionPlan`
-- `CreativeVersion[]`
-- `PublishedAsset[]`
+- Batch 3：`GET /api/roles/visual_director/dashboard`
+- `RoleDashboardResponse`
+- 当前为 API-backed skeleton：`summary + projectCards + decisionQueue`
 
 ---
 
@@ -127,11 +162,9 @@ Goal:
 - serve as operating map of the system
 
 Core models:
-- `ProjectObject[]`
-- `LifecycleOverviewVM`
-- `ProjectRealtimeSnapshot[]`
-- `ExceptionItem[]`
-- `ActionItem[]`
+- Batch 1：`GET /api/projects` 返回的项目摘要
+- `localSandboxRepositories.lifecycle.getOverview()`
+- `QueryResult<T>`
 
 ---
 
@@ -215,15 +248,26 @@ Goal:
 - unify all collaboration around one project object
 
 Core models:
-- `ProjectObject`
-- `DecisionObject`
-- `ProductDefinition`
-- `ExpressionPlan`
+- Batch 2：`GET /api/projects/:id` + `GET /api/projects/:id/knowledge` + Brain API
+- `localSandboxRepositories.projects.getWorkbench()`
+- `KpiMetric[]`
+- `RiskSignal[]`
+- `Opportunity[]`
 - `ActionItem[]`
-- `AgentState[]`
-- `ReviewSummary`
+- `ReviewSummary | null`
 - `AssetCandidate[]`
-- `ProjectRealtimeSnapshot`
+- `EvidencePack`
+- `DecisionContext`
+- `DecisionObject`
+- `RoleStory`
+
+备注：
+
+- 项目详情页已经升级为“项目 + 证据 + 决策”页面
+- 项目详情页已接入 `boss` / `operations_director` / `product_rnd_director` / `visual_director` 四个同源 role story 切换区
+- Agent / Execution 仍明确为 `Batch 3+` 占位态
+- `boss` / `operations-director` 已正式迁移到 role dashboard API
+- `product-rnd-director` / `visual-director` 当前为 skeleton 迁移
 
 ---
 

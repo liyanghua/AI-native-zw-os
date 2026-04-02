@@ -11,12 +11,13 @@ import {
   TrendingUp,
   Zap,
 } from "lucide-react";
+import { roleRouteManifest } from "./routeManifest";
 
 export const roles = [
-  { id: "boss", name: "老板", path: "/boss" },
-  { id: "product", name: "产品研发总监", path: "/product-director" },
-  { id: "operations", name: "运营与营销总监", path: "/operations-director" },
-  { id: "visual", name: "视觉总监", path: "/visual-director" },
+  { id: "boss", name: "老板", path: roleRouteManifest.canonical.boss },
+  { id: "product", name: "产品研发总监", path: roleRouteManifest.canonical.product_rnd_director },
+  { id: "operations", name: "运营与营销总监", path: roleRouteManifest.canonical.operations_director },
+  { id: "visual", name: "视觉总监", path: roleRouteManifest.canonical.visual_director },
 ] as const;
 
 export const navigation = [
@@ -38,6 +39,7 @@ export const navigation = [
 export function getPageTitle(pathname: string) {
   if (pathname === "/" || pathname === "/boss") return "经营指挥台";
   if (pathname.startsWith("/project/")) return "商品项目详情";
+  if (pathname === "/product-rnd-director") return "产品研发总监工作台";
   if (pathname === "/product-director") return "产品研发总监工作台";
   if (pathname === "/operations-director") return "运营与营销总监工作台";
   if (pathname === "/visual-director") return "视觉总监工作台";

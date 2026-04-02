@@ -7,6 +7,8 @@ import {
   useRef,
   type PropsWithChildren,
 } from "react";
+import { createApiClient } from "./apiClient";
+import { createLocalSandboxRepositories } from "./localSandboxRepositories";
 import { createMutationResult } from "./queryResult";
 import { createPilotRepositories } from "./repositories";
 import { createPilotRuntime } from "./pilotRuntime";
@@ -15,8 +17,12 @@ const PilotDataContext = createContext<ReturnType<typeof createContextValue> | n
 
 function createContextValue(forceRefresh: () => void, runtime = createPilotRuntime()) {
   const repositories = createPilotRepositories(runtime);
+  const sandboxRepositories = createLocalSandboxRepositories(
+    createApiClient({ baseUrl: "/api" }),
+  );
   return {
     repositories,
+    sandboxRepositories,
     refresh() {
       runtime.refreshLiveData();
       forceRefresh();

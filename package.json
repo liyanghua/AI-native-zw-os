@@ -6,6 +6,9 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
+    "db:init": "node scripts/db-init.mjs",
+    "db:seed": "node scripts/db-seed.mjs",
+    "api": "node scripts/api-server.mjs",
     "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
