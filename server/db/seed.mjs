@@ -1,6 +1,7 @@
 import { openDatabase } from "./client.mjs";
 import { initLocalSandboxDatabase } from "./init.mjs";
 import { chunkMarkdownAsset } from "./knowledge.mjs";
+import { listRoleProfiles } from "./roleProfiles.mjs";
 
 const timestamps = {
   created: "2026-04-02T09:00:00+08:00",
@@ -63,6 +64,21 @@ const projects = [
         confidence: "high",
       },
       {
+        actionId: "action-launch-push-stage-transition",
+        decisionId: "decision-local-launch-breeze-bag",
+        role: "operations_director",
+        actionDomain: "operations",
+        actionType: "push_stage_transition",
+        description: "完成首发承接页修正后，推动项目进入下一轮验证观察。",
+        owner: "赵颖",
+        requiredApproval: 0,
+        approvalStatus: "not_required",
+        executionStatus: "completed",
+        expectedMetric: "cvr",
+        expectedDirection: "up",
+        confidence: "medium",
+      },
+      {
         actionId: "action-launch-refresh-main-visual",
         decisionId: "decision-local-launch-breeze-bag",
         role: "visual_director",
@@ -79,9 +95,66 @@ const projects = [
       },
     ],
     approvals: [],
-    executionRuns: [],
-    executionLogs: [],
-    writebackRecords: [],
+    executionRuns: [
+      {
+        runId: "run-launch-push-stage-transition",
+        actionId: "action-launch-push-stage-transition",
+        role: "operations_director",
+        actionDomain: "operations",
+        agentName: "operations-agent",
+        connectorName: "mock-operations-connector",
+        requestPayload: {
+          actionDomain: "operations",
+          transitionGoal: "进入下一轮 launch validation 观察",
+        },
+        responsePayload: {
+          resultStatus: "completed",
+          changedMetrics: [
+            {
+              metricName: "cvr",
+              previousValue: 1.1,
+              newValue: 1.3,
+              metricUnit: "%",
+            },
+          ],
+          riskChange: "承接页修正后，低转化继续放量的风险有所回落。",
+        },
+        resultStatus: "completed",
+        startedAt: "2026-04-02T10:30:00+08:00",
+        finishedAt: "2026-04-02T10:36:00+08:00",
+      },
+    ],
+    executionLogs: [
+      {
+        logId: "log-launch-push-stage-transition-triggered",
+        actionId: "action-launch-push-stage-transition",
+        runId: "run-launch-push-stage-transition",
+        logType: "agent_triggered",
+        message: "运营 Agent 已接手阶段推进动作。",
+        createdAt: "2026-04-02T10:30:00+08:00",
+      },
+      {
+        logId: "log-launch-push-stage-transition-completed",
+        actionId: "action-launch-push-stage-transition",
+        runId: "run-launch-push-stage-transition",
+        logType: "mock_execution_completed",
+        message: "首发承接修正已完成，进入下一轮验证观察。",
+        createdAt: "2026-04-02T10:36:00+08:00",
+      },
+    ],
+    writebackRecords: [
+      {
+        writebackId: "writeback-launch-push-stage-transition",
+        actionId: "action-launch-push-stage-transition",
+        runId: "run-launch-push-stage-transition",
+        targetType: "project_snapshot",
+        targetId: "local-launch-breeze-bag",
+        payloadHash: "seed-launch-push-stage-transition",
+        resultStatus: "succeeded",
+        errorMessage: null,
+        createdAt: "2026-04-02T10:37:00+08:00",
+      },
+    ],
   },
   {
     projectId: "local-growth-travel-pro",
@@ -275,6 +348,10 @@ const projects = [
       sourceActionId: "action-review-refine-product-definition",
       sourceRunId: "run-review-refine-product-definition",
       reviewSummary: "复盘确认：表达统一、价格说明前置后，转化率稳定抬升。",
+      reviewStatus: "approved",
+      reviewType: "execution_review",
+      reviewQualityScore: 92,
+      isPromotedToAsset: 1,
       outcome: {
         verdict: "success",
         keyLearnings: ["详情页结构前置卖点", "价格说明与权益组合必须同屏出现"],
@@ -282,15 +359,75 @@ const projects = [
         nextSuggestion: "转化经验可继续沉淀到办公包新品 launch checklist",
       },
       createdAt: "2026-04-02T10:55:00+08:00",
+      updatedAt: "2026-04-02T11:20:00+08:00",
     },
     assetCandidates: [
       {
         candidateId: "candidate-office-classic-template",
         sourceReviewId: "review-office-classic",
+        assetType: "template",
         title: "办公包详情页表达模板",
         contentMarkdown: "## 模板摘要\n- 首屏卖点\n- 价格说明\n- 通勤场景证明",
+        reviewStatus: "approved",
+        publishStatus: "candidate",
+        reusabilityScore: 86,
+        feedbackToKnowledge: "not_started",
         status: "draft",
         createdAt: "2026-04-02T11:05:00+08:00",
+        updatedAt: "2026-04-02T11:20:00+08:00",
+      },
+      {
+        candidateId: "candidate-office-classic-playbook",
+        sourceReviewId: "review-office-classic",
+        assetType: "case",
+        title: "办公包复盘打法手册",
+        contentMarkdown: "## 复盘打法\n- 统一卖点表达\n- 价格承诺前置\n- 通勤场景证明链路",
+        reviewStatus: "approved",
+        publishStatus: "published",
+        reusabilityScore: 90,
+        feedbackToKnowledge: "synced",
+        status: "published",
+        createdAt: "2026-04-02T11:08:00+08:00",
+        updatedAt: "2026-04-02T11:25:00+08:00",
+      },
+    ],
+    publishedAssets: [
+      {
+        assetId: "asset-office-classic-playbook",
+        candidateId: "candidate-office-classic-playbook",
+        sourceReviewId: "review-office-classic",
+        assetType: "case",
+        title: "办公包复盘打法手册",
+        contentMarkdown: "## 复盘打法\n- 统一卖点表达\n- 价格承诺前置\n- 通勤场景证明链路",
+        publishStatus: "published",
+        publishedAt: "2026-04-02T11:25:00+08:00",
+        createdAt: "2026-04-02T11:25:00+08:00",
+        updatedAt: "2026-04-02T11:25:00+08:00",
+      },
+    ],
+    evaluationRecords: [
+      {
+        evaluationId: "evaluation-review-office-classic",
+        decisionId: "decision-local-review-office-classic",
+        actionId: "action-review-refine-product-definition",
+        runId: "run-review-refine-product-definition",
+        reviewId: "review-office-classic",
+        candidateId: "candidate-office-classic-playbook",
+        evaluationType: "governance_eval",
+        scoreJson: JSON.stringify({ score: 0.91, completeness: 1, reusable: 0.88 }),
+        notes: "复盘、资产与知识回流链路完整，可作为 Batch 5 治理样本。",
+        createdAt: "2026-04-02T11:28:00+08:00",
+      },
+    ],
+    knowledgeFeedbackRecords: [
+      {
+        feedbackId: "feedback-office-classic-playbook",
+        sourceType: "published_asset",
+        sourceId: "asset-office-classic-playbook",
+        targetAssetId: "asset-feedback-office-classic-playbook",
+        feedbackMode: "promote_to_knowledge",
+        status: "synced",
+        createdAt: "2026-04-02T11:30:00+08:00",
       },
     ],
   },
@@ -544,6 +681,28 @@ const knowledgeAssets = [
     contentMarkdown: `## Product learnings\nThis closed project clarified which SKU angle and price promise should be reused in the next launch.\n\n## Reuse\nTurn the conclusion into a reusable category checklist.`,
   },
   {
+    assetId: "asset-feedback-office-classic-playbook",
+    title: "办公包复盘打法回流知识",
+    assetType: "case",
+    stage: "review_capture",
+    role: "product_rnd_director",
+    sourceProjectId: "local-review-office-classic",
+    applicability: {
+      stage: ["review_capture", "launch_validation"],
+      role: ["product_rd_director", "growth_director"],
+      assetType: ["case"],
+      channel: "ecommerce",
+      category: "办公通勤包",
+      businessGoal: "knowledge_capture",
+      priceBand: "mid",
+      lifecycle: "review",
+      preconditions: ["已经完成 execution review"],
+      exclusionConditions: [],
+    },
+    keywords: "office bag review playbook knowledge feedback reusable",
+    contentMarkdown: `## 办公包复盘打法\n先统一卖点表达，再把价格承诺和通勤场景证明放到详情页首屏。\n\n## 复用条件\n适合首发验证或复盘沉淀阶段，用来快速复用办公包项目的表达逻辑。`,
+  },
+  {
     assetId: "knowledge-visual-case-refresh",
     title: "Creative Refresh Reference",
     assetType: "case",
@@ -567,12 +726,803 @@ const knowledgeAssets = [
   },
 ];
 
+const runtimeWorkflows = [
+  {
+    workflowId: "workflow-action-launch-refresh-main-visual",
+    projectId: "local-launch-breeze-bag",
+    actionId: "action-launch-refresh-main-visual",
+    role: "visual_director",
+    actionDomain: "visual",
+    status: "retryable",
+    currentTaskType: "mock_execution",
+    startedAt: "2026-04-02T10:24:00+08:00",
+    finishedAt: null,
+    lastEventAt: "2026-04-02T10:29:00+08:00",
+  },
+  {
+    workflowId: "workflow-action-growth-budget-reallocation",
+    projectId: "local-growth-travel-pro",
+    actionId: "action-growth-budget-reallocation",
+    role: "operations_director",
+    actionDomain: "operations",
+    status: "awaiting_approval",
+    currentTaskType: "approval_gate",
+    startedAt: "2026-04-02T10:48:00+08:00",
+    finishedAt: null,
+    lastEventAt: "2026-04-02T10:49:00+08:00",
+  },
+  {
+    workflowId: "workflow-action-review-refine-product-definition",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    role: "product_rnd_director",
+    actionDomain: "product_rnd",
+    status: "completed",
+    currentTaskType: "asset_publish",
+    startedAt: "2026-04-02T10:42:00+08:00",
+    finishedAt: "2026-04-02T11:05:00+08:00",
+    lastEventAt: "2026-04-02T11:05:00+08:00",
+  },
+];
+
+const runtimeTasks = [
+  {
+    taskId: "workflow-action-launch-refresh-main-visual-agent_trigger-1",
+    workflowId: "workflow-action-launch-refresh-main-visual",
+    projectId: "local-launch-breeze-bag",
+    actionId: "action-launch-refresh-main-visual",
+    runId: null,
+    taskType: "agent_trigger",
+    attempt: 1,
+    status: "completed",
+    requestPayload: { actionDomain: "visual", creativeObjective: "refresh hero block" },
+    responsePayload: { accepted: true },
+    errorMessage: null,
+    startedAt: "2026-04-02T10:24:00+08:00",
+    finishedAt: "2026-04-02T10:24:10+08:00",
+    createdAt: "2026-04-02T10:24:00+08:00",
+    updatedAt: "2026-04-02T10:24:10+08:00",
+  },
+  {
+    taskId: "workflow-action-launch-refresh-main-visual-mock_execution-1",
+    workflowId: "workflow-action-launch-refresh-main-visual",
+    projectId: "local-launch-breeze-bag",
+    actionId: "action-launch-refresh-main-visual",
+    runId: null,
+    taskType: "mock_execution",
+    attempt: 1,
+    status: "failed",
+    requestPayload: { actionDomain: "visual", expectedMetric: "ctr" },
+    responsePayload: { resultStatus: "failed", notes: ["first creative hypothesis did not converge"] },
+    errorMessage: "Connector returned unstable creative result.",
+    startedAt: "2026-04-02T10:24:10+08:00",
+    finishedAt: "2026-04-02T10:27:00+08:00",
+    createdAt: "2026-04-02T10:24:10+08:00",
+    updatedAt: "2026-04-02T10:27:00+08:00",
+  },
+  {
+    taskId: "workflow-action-launch-refresh-main-visual-mock_execution-2",
+    workflowId: "workflow-action-launch-refresh-main-visual",
+    projectId: "local-launch-breeze-bag",
+    actionId: "action-launch-refresh-main-visual",
+    runId: null,
+    taskType: "mock_execution",
+    attempt: 2,
+    status: "retryable",
+    requestPayload: { actionDomain: "visual", expectedMetric: "ctr", retry: 1 },
+    responsePayload: { resultStatus: "retryable", notes: ["needs another creative round"] },
+    errorMessage: "Creative connector suggests another retry.",
+    startedAt: "2026-04-02T10:28:00+08:00",
+    finishedAt: "2026-04-02T10:29:00+08:00",
+    createdAt: "2026-04-02T10:28:00+08:00",
+    updatedAt: "2026-04-02T10:29:00+08:00",
+  },
+  {
+    taskId: "workflow-action-growth-budget-reallocation-approval_gate-1",
+    workflowId: "workflow-action-growth-budget-reallocation",
+    projectId: "local-growth-travel-pro",
+    actionId: "action-growth-budget-reallocation",
+    runId: null,
+    taskType: "approval_gate",
+    attempt: 1,
+    status: "awaiting_approval",
+    requestPayload: { requiredBy: "boss", actionDomain: "operations" },
+    responsePayload: null,
+    errorMessage: null,
+    startedAt: "2026-04-02T10:48:00+08:00",
+    finishedAt: null,
+    createdAt: "2026-04-02T10:48:00+08:00",
+    updatedAt: "2026-04-02T10:49:00+08:00",
+  },
+  {
+    taskId: "workflow-action-review-refine-product-definition-approval_gate-1",
+    workflowId: "workflow-action-review-refine-product-definition",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    runId: null,
+    taskType: "approval_gate",
+    attempt: 1,
+    status: "completed",
+    requestPayload: { requiredBy: "product_rnd_director" },
+    responsePayload: { approvalStatus: "approved" },
+    errorMessage: null,
+    startedAt: "2026-04-02T10:40:00+08:00",
+    finishedAt: "2026-04-02T10:40:00+08:00",
+    createdAt: "2026-04-02T10:40:00+08:00",
+    updatedAt: "2026-04-02T10:40:00+08:00",
+  },
+  {
+    taskId: "workflow-action-review-refine-product-definition-agent_trigger-1",
+    workflowId: "workflow-action-review-refine-product-definition",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    runId: "run-review-refine-product-definition",
+    taskType: "agent_trigger",
+    attempt: 1,
+    status: "completed",
+    requestPayload: { agentName: "product-rnd-agent" },
+    responsePayload: { accepted: true },
+    errorMessage: null,
+    startedAt: "2026-04-02T10:42:00+08:00",
+    finishedAt: "2026-04-02T10:42:00+08:00",
+    createdAt: "2026-04-02T10:42:00+08:00",
+    updatedAt: "2026-04-02T10:42:00+08:00",
+  },
+  {
+    taskId: "workflow-action-review-refine-product-definition-mock_execution-1",
+    workflowId: "workflow-action-review-refine-product-definition",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    runId: "run-review-refine-product-definition",
+    taskType: "mock_execution",
+    attempt: 1,
+    status: "completed",
+    requestPayload: { connector: "mock-product-rnd-connector" },
+    responsePayload: { resultStatus: "completed" },
+    errorMessage: null,
+    startedAt: "2026-04-02T10:42:00+08:00",
+    finishedAt: "2026-04-02T10:46:00+08:00",
+    createdAt: "2026-04-02T10:42:00+08:00",
+    updatedAt: "2026-04-02T10:46:00+08:00",
+  },
+  {
+    taskId: "workflow-action-review-refine-product-definition-writeback-1",
+    workflowId: "workflow-action-review-refine-product-definition",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    runId: "run-review-refine-product-definition",
+    taskType: "writeback",
+    attempt: 1,
+    status: "completed",
+    requestPayload: { target: "project_snapshot" },
+    responsePayload: { writebackId: "writeback-review-refine-product-definition" },
+    errorMessage: null,
+    startedAt: "2026-04-02T10:48:00+08:00",
+    finishedAt: "2026-04-02T10:48:00+08:00",
+    createdAt: "2026-04-02T10:48:00+08:00",
+    updatedAt: "2026-04-02T10:48:00+08:00",
+  },
+  {
+    taskId: "workflow-action-review-refine-product-definition-review_generate-1",
+    workflowId: "workflow-action-review-refine-product-definition",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    runId: "run-review-refine-product-definition",
+    taskType: "review_generate",
+    attempt: 1,
+    status: "completed",
+    requestPayload: { reviewId: "review-office-classic" },
+    responsePayload: { reviewStatus: "approved" },
+    errorMessage: null,
+    startedAt: "2026-04-02T10:55:00+08:00",
+    finishedAt: "2026-04-02T10:55:00+08:00",
+    createdAt: "2026-04-02T10:55:00+08:00",
+    updatedAt: "2026-04-02T10:55:00+08:00",
+  },
+  {
+    taskId: "workflow-action-review-refine-product-definition-asset_publish-1",
+    workflowId: "workflow-action-review-refine-product-definition",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    runId: null,
+    taskType: "asset_publish",
+    attempt: 1,
+    status: "completed",
+    requestPayload: { candidateId: "candidate-office-classic-playbook" },
+    responsePayload: { publishStatus: "published" },
+    errorMessage: null,
+    startedAt: "2026-04-02T11:05:00+08:00",
+    finishedAt: "2026-04-02T11:05:00+08:00",
+    createdAt: "2026-04-02T11:05:00+08:00",
+    updatedAt: "2026-04-02T11:05:00+08:00",
+  },
+];
+
+const runtimeEvents = [
+  {
+    eventId: "event-launch-refresh-agent-triggered",
+    workflowId: "workflow-action-launch-refresh-main-visual",
+    taskId: "workflow-action-launch-refresh-main-visual-agent_trigger-1",
+    projectId: "local-launch-breeze-bag",
+    actionId: "action-launch-refresh-main-visual",
+    eventType: "agent_triggered",
+    status: "queued",
+    summary: "Visual agent accepted the refresh task.",
+    payload: { agent: "visual-agent" },
+    createdAt: "2026-04-02T10:24:00+08:00",
+  },
+  {
+    eventId: "event-launch-refresh-execution-failed",
+    workflowId: "workflow-action-launch-refresh-main-visual",
+    taskId: "workflow-action-launch-refresh-main-visual-mock_execution-1",
+    projectId: "local-launch-breeze-bag",
+    actionId: "action-launch-refresh-main-visual",
+    eventType: "mock_execution_failed",
+    status: "retryable",
+    summary: "Visual connector suggested another retry round.",
+    payload: { run: null },
+    createdAt: "2026-04-02T10:27:00+08:00",
+  },
+  {
+    eventId: "event-launch-refresh-task-retried",
+    workflowId: "workflow-action-launch-refresh-main-visual",
+    taskId: "workflow-action-launch-refresh-main-visual-mock_execution-2",
+    projectId: "local-launch-breeze-bag",
+    actionId: "action-launch-refresh-main-visual",
+    eventType: "task_retried",
+    status: "retryable",
+    summary: "Visual creative iteration queued for another retry.",
+    payload: { retry: 1 },
+    createdAt: "2026-04-02T10:29:00+08:00",
+  },
+  {
+    eventId: "event-growth-approval-requested",
+    workflowId: "workflow-action-growth-budget-reallocation",
+    taskId: "workflow-action-growth-budget-reallocation-approval_gate-1",
+    projectId: "local-growth-travel-pro",
+    actionId: "action-growth-budget-reallocation",
+    eventType: "approval_requested",
+    status: "awaiting_approval",
+    summary: "Budget reallocation is waiting for boss approval.",
+    payload: { requiredRole: "boss" },
+    createdAt: "2026-04-02T10:49:00+08:00",
+  },
+  {
+    eventId: "event-review-approval-resolved",
+    workflowId: "workflow-action-review-refine-product-definition",
+    taskId: "workflow-action-review-refine-product-definition-approval_gate-1",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    eventType: "approval_resolved",
+    status: "queued",
+    summary: "Product review approval completed.",
+    payload: { approvalStatus: "approved" },
+    createdAt: "2026-04-02T10:40:00+08:00",
+  },
+  {
+    eventId: "event-review-mock-execution-completed",
+    workflowId: "workflow-action-review-refine-product-definition",
+    taskId: "workflow-action-review-refine-product-definition-mock_execution-1",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    eventType: "mock_execution_completed",
+    status: "awaiting_writeback",
+    summary: "Product R&D connector finished execution and is waiting for writeback.",
+    payload: { runId: "run-review-refine-product-definition" },
+    createdAt: "2026-04-02T10:46:00+08:00",
+  },
+  {
+    eventId: "event-review-writeback-completed",
+    workflowId: "workflow-action-review-refine-product-definition",
+    taskId: "workflow-action-review-refine-product-definition-writeback-1",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    eventType: "writeback_completed",
+    status: "queued",
+    summary: "Writeback completed and review generation is queued.",
+    payload: { writebackId: "writeback-review-refine-product-definition" },
+    createdAt: "2026-04-02T10:48:00+08:00",
+  },
+  {
+    eventId: "event-review-asset-published",
+    workflowId: "workflow-action-review-refine-product-definition",
+    taskId: "workflow-action-review-refine-product-definition-asset_publish-1",
+    projectId: "local-review-office-classic",
+    actionId: "action-review-refine-product-definition",
+    eventType: "asset_published",
+    status: "completed",
+    summary: "Asset candidate has been published and workflow is complete.",
+    payload: { candidateId: "candidate-office-classic-playbook" },
+    createdAt: "2026-04-02T11:05:00+08:00",
+  },
+];
+
+const retryRecords = [
+  {
+    retryId: "retry-launch-refresh-1",
+    workflowId: "workflow-action-launch-refresh-main-visual",
+    originalTaskId: "workflow-action-launch-refresh-main-visual-mock_execution-1",
+    newTaskId: "workflow-action-launch-refresh-main-visual-mock_execution-2",
+    operator: "系统",
+    reason: "首次创意迭代未达到质量阈值。",
+    createdAt: "2026-04-02T10:28:00+08:00",
+  },
+];
+
+const evalCases = [
+  {
+    caseId: "eval-case-decision-quality",
+    name: "Decision quality",
+    scope: "decision",
+    severity: "high",
+    status: "active",
+    ruleSpecJson: JSON.stringify({ requiresEvidence: true, requiresRecommendedAction: true }),
+    createdAt: timestamps.updated,
+  },
+  {
+    caseId: "eval-case-action-completeness",
+    name: "Action completeness",
+    scope: "action",
+    severity: "medium",
+    status: "active",
+    ruleSpecJson: JSON.stringify({ requiresOwner: true, requiresDomain: true, requiresMetric: true }),
+    createdAt: timestamps.updated,
+  },
+  {
+    caseId: "eval-case-execution-completeness",
+    name: "Execution completeness",
+    scope: "execution",
+    severity: "high",
+    status: "active",
+    ruleSpecJson: JSON.stringify({ requiresRun: true, requiresWriteback: true }),
+    createdAt: timestamps.updated,
+  },
+  {
+    caseId: "eval-case-review-quality",
+    name: "Review quality",
+    scope: "review",
+    severity: "medium",
+    status: "active",
+    ruleSpecJson: JSON.stringify({ requiresSummary: true, requiresNextSuggestion: true }),
+    createdAt: timestamps.updated,
+  },
+  {
+    caseId: "eval-case-asset-quality",
+    name: "Asset quality",
+    scope: "asset",
+    severity: "medium",
+    status: "active",
+    ruleSpecJson: JSON.stringify({ requiresPublishOrFeedback: true }),
+    createdAt: timestamps.updated,
+  },
+  {
+    caseId: "eval-case-role-consistency",
+    name: "Role consistency",
+    scope: "role_consistency",
+    severity: "medium",
+    status: "active",
+    ruleSpecJson: JSON.stringify({ comparesRoleStories: true }),
+    createdAt: timestamps.updated,
+  },
+  {
+    caseId: "eval-case-lineage-integrity",
+    name: "Lineage integrity",
+    scope: "lineage_integrity",
+    severity: "high",
+    status: "active",
+    ruleSpecJson: JSON.stringify({ requiresClosedLoopLineage: true }),
+    createdAt: timestamps.updated,
+  },
+];
+
+const evalSuites = [
+  {
+    suiteId: "eval-suite-batch6-smoke",
+    name: "Batch 6 Smoke Suite",
+    description: "覆盖 decision / action / execution / review / asset / role / lineage 的最小冒烟套件。",
+    status: "active",
+    caseIdsJson: JSON.stringify(evalCases.map((item) => item.caseId)),
+    createdAt: timestamps.updated,
+  },
+];
+
+const evalRuns = [
+  {
+    runId: "eval-run-review-office-classic-seeded",
+    projectId: "local-review-office-classic",
+    suiteId: "eval-suite-batch6-smoke",
+    status: "completed",
+    summaryJson: JSON.stringify({ total: 7, averageScore: 88, byStatus: { pass: 5, warning: 2 } }),
+    startedAt: "2026-04-02T11:31:00+08:00",
+    finishedAt: "2026-04-02T11:32:00+08:00",
+  },
+];
+
+const evalResults = [
+  {
+    resultId: "eval-result-review-decision",
+    runId: "eval-run-review-office-classic-seeded",
+    caseId: "eval-case-decision-quality",
+    relatedObjectType: "decision",
+    relatedObjectId: "decision-local-review-office-classic",
+    status: "pass",
+    scoreJson: JSON.stringify({ score: 92 }),
+    notes: "Decision evidence is complete for the closed review project.",
+    createdAt: "2026-04-02T11:32:00+08:00",
+  },
+  {
+    resultId: "eval-result-review-action",
+    runId: "eval-run-review-office-classic-seeded",
+    caseId: "eval-case-action-completeness",
+    relatedObjectType: "action",
+    relatedObjectId: "action-review-refine-product-definition",
+    status: "pass",
+    scoreJson: JSON.stringify({ score: 90 }),
+    notes: "Action is complete and well-scoped.",
+    createdAt: "2026-04-02T11:32:00+08:00",
+  },
+  {
+    resultId: "eval-result-review-execution",
+    runId: "eval-run-review-office-classic-seeded",
+    caseId: "eval-case-execution-completeness",
+    relatedObjectType: "execution",
+    relatedObjectId: "run-review-refine-product-definition",
+    status: "pass",
+    scoreJson: JSON.stringify({ score: 90 }),
+    notes: "Execution, writeback and logs are all present.",
+    createdAt: "2026-04-02T11:32:00+08:00",
+  },
+  {
+    resultId: "eval-result-review-review",
+    runId: "eval-run-review-office-classic-seeded",
+    caseId: "eval-case-review-quality",
+    relatedObjectType: "review",
+    relatedObjectId: "review-office-classic",
+    status: "pass",
+    scoreJson: JSON.stringify({ score: 88 }),
+    notes: "Review summary and next suggestion are available.",
+    createdAt: "2026-04-02T11:32:00+08:00",
+  },
+  {
+    resultId: "eval-result-review-asset",
+    runId: "eval-run-review-office-classic-seeded",
+    caseId: "eval-case-asset-quality",
+    relatedObjectType: "asset",
+    relatedObjectId: "asset-office-classic-playbook",
+    status: "pass",
+    scoreJson: JSON.stringify({ score: 86 }),
+    notes: "Published asset and knowledge feedback are both present.",
+    createdAt: "2026-04-02T11:32:00+08:00",
+  },
+  {
+    resultId: "eval-result-review-role",
+    runId: "eval-run-review-office-classic-seeded",
+    caseId: "eval-case-role-consistency",
+    relatedObjectType: "decision",
+    relatedObjectId: "role-consistency-local-review-office-classic",
+    status: "warning",
+    scoreJson: JSON.stringify({ score: 72 }),
+    notes: "Role stories are aligned but still differ in emphasis.",
+    createdAt: "2026-04-02T11:32:00+08:00",
+  },
+  {
+    resultId: "eval-result-review-lineage",
+    runId: "eval-run-review-office-classic-seeded",
+    caseId: "eval-case-lineage-integrity",
+    relatedObjectType: "decision",
+    relatedObjectId: "decision-local-review-office-classic",
+    status: "pass",
+    scoreJson: JSON.stringify({ score: 94 }),
+    notes: "Lineage from decision to asset is intact.",
+    createdAt: "2026-04-02T11:32:00+08:00",
+  },
+];
+
+const gateDecisions = [
+  {
+    gateId: "gate-eval-run-review-office-classic-seeded",
+    runId: "eval-run-review-office-classic-seeded",
+    decision: "warning",
+    summary: "Seeded closed-loop project passes most checks, with minor role consistency warnings.",
+    createdAt: "2026-04-02T11:32:00+08:00",
+  },
+];
+
+const policyObjects = [
+  {
+    policyId: "policy-operations-execution",
+    policyType: "action_policy",
+    title: "Operations Execution Policy",
+    owner: "赵颖",
+    payloadJson: JSON.stringify({
+      actionDomain: "operations",
+      approvalRule: "boss approval required when ROI stop-loss action changes budget allocation",
+      allowedActionTypes: ["adjust_launch_plan", "increase_campaign_support", "pause_low_roi_action", "push_stage_transition"],
+    }),
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+  {
+    policyId: "policy-visual-execution",
+    policyType: "action_policy",
+    title: "Visual Execution Policy",
+    owner: "林乔",
+    payloadJson: JSON.stringify({
+      actionDomain: "visual",
+      approvalRule: "visual refresh can run without boss approval when no price change is involved",
+      allowedActionTypes: ["refresh_main_visual", "iterate_video_asset", "revise_detail_page", "support_launch_creative"],
+    }),
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+];
+
+const templateObjects = [
+  {
+    templateId: "template-launch-creative",
+    title: "Launch Creative Template",
+    owner: "林乔",
+    payloadJson: JSON.stringify({
+      heroStructure: ["promise", "proof", "price", "coupon"],
+      firstScreenRule: "landing continuity",
+    }),
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+];
+
+const skillObjects = [
+  {
+    skillId: "skill-growth-diagnosis",
+    title: "Growth Diagnosis Skill",
+    owner: "张伟",
+    payloadJson: JSON.stringify({
+      appliesTo: ["growth_optimization"],
+      outputs: ["budget recommendation", "risk summary", "stop-loss advice"],
+    }),
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+];
+
+const ontologyRegistry = [
+  ...listRoleProfiles().map((profile) => ({
+    registryId: `ontology-role-profile-${profile.roleId}`,
+    itemType: "role_profile",
+    name: profile.roleName,
+    status: "active",
+    owner: "system",
+    currentVersion: 1,
+    sourceTable: "role_profiles_virtual",
+    sourceId: profile.roleId,
+    updatedAt: timestamps.updated,
+    payload: profile,
+  })),
+  ...stageRules.map((rule) => ({
+    registryId: `ontology-stage-rule-${rule.ruleId}`,
+    itemType: "stage_rule",
+    name: rule.ruleText,
+    status: "active",
+    owner: "system",
+    currentVersion: 1,
+    sourceTable: "stage_rules",
+    sourceId: rule.stage,
+    updatedAt: timestamps.updated,
+    payload: rule,
+  })),
+  ...policyObjects.map((policy) => ({
+    registryId: `ontology-${policy.policyId}`,
+    itemType: "action_policy",
+    name: policy.title,
+    status: "active",
+    owner: policy.owner,
+    currentVersion: 1,
+    sourceTable: "policy_objects",
+    sourceId: policy.policyId,
+    updatedAt: timestamps.updated,
+    payload: JSON.parse(policy.payloadJson),
+  })),
+  {
+    registryId: "ontology-review-pattern-execution",
+    itemType: "review_pattern",
+    name: "Execution Review Pattern",
+    status: "active",
+    owner: "李安",
+    currentVersion: 1,
+    sourceTable: "reviews",
+    sourceId: "execution_review",
+    updatedAt: timestamps.updated,
+    payload: {
+      reviewType: "execution_review",
+      requiredFields: ["review_summary", "outcome_json", "nextSuggestion"],
+    },
+  },
+  ...["template", "case", "rule"].map((assetType) => ({
+    registryId: `ontology-asset-type-${assetType}`,
+    itemType: "asset_type",
+    name: assetType,
+    status: "active",
+    owner: "李安",
+    currentVersion: 1,
+    sourceTable: "asset_candidates",
+    sourceId: assetType,
+    updatedAt: timestamps.updated,
+    payload: { assetType },
+  })),
+  {
+    registryId: "ontology-template-launch-creative",
+    itemType: "template",
+    name: "Launch Creative Template",
+    status: "active",
+    owner: "林乔",
+    currentVersion: 1,
+    sourceTable: "template_objects",
+    sourceId: "template-launch-creative",
+    updatedAt: timestamps.updated,
+    payload: JSON.parse(templateObjects[0].payloadJson),
+  },
+  {
+    registryId: "ontology-skill-growth-diagnosis",
+    itemType: "skill",
+    name: "Growth Diagnosis Skill",
+    status: "active",
+    owner: "张伟",
+    currentVersion: 1,
+    sourceTable: "skill_objects",
+    sourceId: "skill-growth-diagnosis",
+    updatedAt: timestamps.updated,
+    payload: JSON.parse(skillObjects[0].payloadJson),
+  },
+];
+
+const ontologyVersions = ontologyRegistry.map((item) => ({
+  versionId: `${item.registryId}-v1`,
+  registryId: item.registryId,
+  version: 1,
+  payloadJson: JSON.stringify(item.payload),
+  changeNote: "Seeded Batch 6 ontology item.",
+  createdAt: timestamps.updated,
+}));
+
+const sourceAdapters = [
+  {
+    adapterId: "adapter-local-mock",
+    name: "Local Sandbox Mock Adapter",
+    mode: "local_mock",
+    owner: "system",
+    connectorKey: "connector-local-sandbox",
+    status: "active",
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+  {
+    adapterId: "adapter-file-bridge",
+    name: "File Bridge Adapter",
+    mode: "file_bridge",
+    owner: "system",
+    connectorKey: "connector-json-fixture",
+    status: "active",
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+  {
+    adapterId: "adapter-api-bridge",
+    name: "Mock API Bridge Adapter",
+    mode: "api_bridge",
+    owner: "system",
+    connectorKey: "connector-mock-http",
+    status: "draft",
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+];
+
+const bridgeConfigs = [
+  {
+    configId: "bridge-config-local-mock",
+    adapterId: "adapter-local-mock",
+    configJson: JSON.stringify({ mode: "local_mock", freshnessTargetSeconds: 60 }),
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+  {
+    configId: "bridge-config-file-bridge",
+    adapterId: "adapter-file-bridge",
+    configJson: JSON.stringify({
+      mode: "file_bridge",
+      fixturePath: "server/fixtures/batch6-file-bridge.json",
+      freshnessTargetSeconds: 300,
+    }),
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+  {
+    configId: "bridge-config-api-bridge",
+    adapterId: "adapter-api-bridge",
+    configJson: JSON.stringify({
+      mode: "api_bridge",
+      baseUrl: "http://mock.local/api",
+      freshnessTargetSeconds: 300,
+    }),
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+];
+
+const connectorRegistry = [
+  {
+    connectorId: "connector-row-local-sandbox",
+    connectorKey: "connector-local-sandbox",
+    mode: "local_mock",
+    title: "Local Sandbox Connector",
+    status: "active",
+    description: "Reads and writes the built-in local sandbox dataset.",
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+  {
+    connectorId: "connector-row-json-fixture",
+    connectorKey: "connector-json-fixture",
+    mode: "file_bridge",
+    title: "JSON Fixture Bridge Connector",
+    status: "active",
+    description: "Imports fixture JSON files into the local sandbox database.",
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+  {
+    connectorId: "connector-row-mock-http",
+    connectorKey: "connector-mock-http",
+    mode: "api_bridge",
+    title: "Mock HTTP Bridge Connector",
+    status: "draft",
+    description: "Placeholder API connector for future external system bridging.",
+    createdAt: timestamps.updated,
+    updatedAt: timestamps.updated,
+  },
+];
+
+const syncRecords = [
+  {
+    syncId: "sync-local-mock-seeded",
+    adapterId: "adapter-local-mock",
+    mode: "local_mock",
+    startedAt: "2026-04-02T11:35:00+08:00",
+    finishedAt: "2026-04-02T11:35:05+08:00",
+    rowsImported: 3,
+    mappingErrorsJson: JSON.stringify([]),
+    freshnessSeconds: 5,
+    status: "completed",
+  },
+];
+
 function resetBatch1Tables(db) {
   [
+    "runtime_events",
+    "retry_records",
+    "task_runs",
+    "workflow_runs",
+    "gate_decisions",
+    "eval_results",
+    "eval_runs",
+    "eval_suites",
+    "eval_cases",
+    "ontology_versions",
+    "ontology_registry",
+    "policy_objects",
+    "template_objects",
+    "skill_objects",
+    "sync_records",
+    "bridge_configs",
+    "source_adapters",
+    "connector_registry",
+    "knowledge_feedback_records",
+    "evaluation_records",
     "knowledge_retrieval_logs",
     "knowledge_chunks_fts",
     "knowledge_chunks",
     "knowledge_assets",
+    "published_assets",
     "asset_candidates",
     "reviews",
     "writeback_records",
@@ -706,22 +1656,49 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
         source_action_id,
         source_run_id,
         review_summary,
+        review_status,
+        review_type,
+        review_quality_score,
+        is_promoted_to_asset,
         outcome_json,
-        created_at
+        created_at,
+        updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertAssetCandidate = db.prepare(`
       INSERT INTO asset_candidates (
         candidate_id,
         project_id,
         source_review_id,
+        asset_type,
         title,
         content_markdown,
+        review_status,
+        publish_status,
+        reusability_score,
+        feedback_to_knowledge,
         status,
-        created_at
+        created_at,
+        updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertPublishedAsset = db.prepare(`
+      INSERT INTO published_assets (
+        asset_id,
+        candidate_id,
+        project_id,
+        source_review_id,
+        asset_type,
+        title,
+        content_markdown,
+        publish_status,
+        published_at,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertOntology = db.prepare(`
       INSERT INTO ontology_entities (entity_id, entity_type, entity_name, entity_json)
@@ -766,6 +1743,244 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
         stage,
         role,
         asset_type
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertEvaluationRecord = db.prepare(`
+      INSERT INTO evaluation_records (
+        evaluation_id,
+        project_id,
+        decision_id,
+        action_id,
+        run_id,
+        review_id,
+        candidate_id,
+        evaluation_type,
+        score_json,
+        notes,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertWorkflowRun = db.prepare(`
+      INSERT INTO workflow_runs (
+        workflow_id,
+        project_id,
+        action_id,
+        role,
+        action_domain,
+        status,
+        current_task_type,
+        started_at,
+        finished_at,
+        last_event_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertTaskRun = db.prepare(`
+      INSERT INTO task_runs (
+        task_id,
+        workflow_id,
+        project_id,
+        action_id,
+        run_id,
+        task_type,
+        attempt,
+        status,
+        request_payload_json,
+        response_payload_json,
+        error_message,
+        started_at,
+        finished_at,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertRuntimeEvent = db.prepare(`
+      INSERT INTO runtime_events (
+        event_id,
+        workflow_id,
+        task_id,
+        project_id,
+        action_id,
+        event_type,
+        status,
+        summary,
+        payload_json,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertRetryRecord = db.prepare(`
+      INSERT INTO retry_records (
+        retry_id,
+        workflow_id,
+        original_task_id,
+        new_task_id,
+        operator,
+        reason,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertEvalCase = db.prepare(`
+      INSERT INTO eval_cases (
+        case_id,
+        name,
+        scope,
+        severity,
+        status,
+        rule_spec_json,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertEvalSuite = db.prepare(`
+      INSERT INTO eval_suites (
+        suite_id,
+        name,
+        description,
+        status,
+        case_ids_json,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const insertEvalRun = db.prepare(`
+      INSERT INTO eval_runs (
+        run_id,
+        project_id,
+        suite_id,
+        status,
+        summary_json,
+        started_at,
+        finished_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertEvalResult = db.prepare(`
+      INSERT INTO eval_results (
+        result_id,
+        run_id,
+        case_id,
+        related_object_type,
+        related_object_id,
+        status,
+        score_json,
+        notes,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertGateDecision = db.prepare(`
+      INSERT INTO gate_decisions (
+        gate_id,
+        run_id,
+        decision,
+        summary,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?)
+    `);
+    const insertOntologyRegistry = db.prepare(`
+      INSERT INTO ontology_registry (
+        registry_id,
+        item_type,
+        name,
+        status,
+        owner,
+        current_version,
+        source_table,
+        source_id,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertOntologyVersion = db.prepare(`
+      INSERT INTO ontology_versions (
+        version_id,
+        registry_id,
+        version,
+        payload_json,
+        change_note,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const insertPolicyObject = db.prepare(`
+      INSERT INTO policy_objects (
+        policy_id,
+        policy_type,
+        title,
+        owner,
+        payload_json,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertTemplateObject = db.prepare(`
+      INSERT INTO template_objects (
+        template_id,
+        title,
+        owner,
+        payload_json,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const insertSkillObject = db.prepare(`
+      INSERT INTO skill_objects (
+        skill_id,
+        title,
+        owner,
+        payload_json,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const insertSourceAdapter = db.prepare(`
+      INSERT INTO source_adapters (
+        adapter_id,
+        name,
+        mode,
+        owner,
+        connector_key,
+        status,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertBridgeConfig = db.prepare(`
+      INSERT INTO bridge_configs (
+        config_id,
+        adapter_id,
+        config_json,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?)
+    `);
+    const insertSyncRecord = db.prepare(`
+      INSERT INTO sync_records (
+        sync_id,
+        adapter_id,
+        mode,
+        started_at,
+        finished_at,
+        rows_imported,
+        mapping_errors_json,
+        freshness_seconds,
+        status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertConnectorRegistry = db.prepare(`
+      INSERT INTO connector_registry (
+        connector_id,
+        connector_key,
+        mode,
+        title,
+        status,
+        description,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertKnowledgeFeedbackRecord = db.prepare(`
+      INSERT INTO knowledge_feedback_records (
+        feedback_id,
+        source_type,
+        source_id,
+        target_asset_id,
+        feedback_mode,
+        status,
+        created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -913,8 +2128,13 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
           project.review.sourceActionId,
           project.review.sourceRunId,
           project.review.reviewSummary,
+          project.review.reviewStatus,
+          project.review.reviewType,
+          project.review.reviewQualityScore,
+          project.review.isPromotedToAsset,
           JSON.stringify(project.review.outcome),
           project.review.createdAt,
+          project.review.updatedAt,
         );
       }
 
@@ -923,12 +2143,280 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
           candidate.candidateId,
           project.projectId,
           candidate.sourceReviewId,
+          candidate.assetType,
           candidate.title,
           candidate.contentMarkdown,
+          candidate.reviewStatus,
+          candidate.publishStatus,
+          candidate.reusabilityScore,
+          candidate.feedbackToKnowledge,
           candidate.status,
           candidate.createdAt,
+          candidate.updatedAt,
         );
       });
+
+      (project.publishedAssets ?? []).forEach((asset) => {
+        insertPublishedAsset.run(
+          asset.assetId,
+          asset.candidateId,
+          project.projectId,
+          asset.sourceReviewId,
+          asset.assetType,
+          asset.title,
+          asset.contentMarkdown,
+          asset.publishStatus,
+          asset.publishedAt,
+          asset.createdAt,
+          asset.updatedAt,
+        );
+      });
+
+      (project.evaluationRecords ?? []).forEach((record) => {
+        insertEvaluationRecord.run(
+          record.evaluationId,
+          project.projectId,
+          record.decisionId,
+          record.actionId,
+          record.runId,
+          record.reviewId,
+          record.candidateId,
+          record.evaluationType,
+          record.scoreJson,
+          record.notes,
+          record.createdAt,
+        );
+      });
+    });
+
+    runtimeWorkflows.forEach((workflow) => {
+      insertWorkflowRun.run(
+        workflow.workflowId,
+        workflow.projectId,
+        workflow.actionId,
+        workflow.role,
+        workflow.actionDomain,
+        workflow.status,
+        workflow.currentTaskType,
+        workflow.startedAt,
+        workflow.finishedAt,
+        workflow.lastEventAt,
+      );
+    });
+
+    runtimeTasks.forEach((task) => {
+      insertTaskRun.run(
+        task.taskId,
+        task.workflowId,
+        task.projectId,
+        task.actionId,
+        task.runId,
+        task.taskType,
+        task.attempt,
+        task.status,
+        task.requestPayload ? JSON.stringify(task.requestPayload) : null,
+        task.responsePayload ? JSON.stringify(task.responsePayload) : null,
+        task.errorMessage,
+        task.startedAt,
+        task.finishedAt,
+        task.createdAt,
+        task.updatedAt,
+      );
+    });
+
+    runtimeEvents.forEach((event) => {
+      insertRuntimeEvent.run(
+        event.eventId,
+        event.workflowId,
+        event.taskId,
+        event.projectId,
+        event.actionId,
+        event.eventType,
+        event.status,
+        event.summary,
+        event.payload ? JSON.stringify(event.payload) : null,
+        event.createdAt,
+      );
+    });
+
+    retryRecords.forEach((record) => {
+      insertRetryRecord.run(
+        record.retryId,
+        record.workflowId,
+        record.originalTaskId,
+        record.newTaskId,
+        record.operator,
+        record.reason,
+        record.createdAt,
+      );
+    });
+
+    evalCases.forEach((item) => {
+      insertEvalCase.run(
+        item.caseId,
+        item.name,
+        item.scope,
+        item.severity,
+        item.status,
+        item.ruleSpecJson,
+        item.createdAt,
+      );
+    });
+
+    evalSuites.forEach((item) => {
+      insertEvalSuite.run(
+        item.suiteId,
+        item.name,
+        item.description,
+        item.status,
+        item.caseIdsJson,
+        item.createdAt,
+      );
+    });
+
+    evalRuns.forEach((item) => {
+      insertEvalRun.run(
+        item.runId,
+        item.projectId,
+        item.suiteId,
+        item.status,
+        item.summaryJson,
+        item.startedAt,
+        item.finishedAt,
+      );
+    });
+
+    evalResults.forEach((item) => {
+      insertEvalResult.run(
+        item.resultId,
+        item.runId,
+        item.caseId,
+        item.relatedObjectType,
+        item.relatedObjectId,
+        item.status,
+        item.scoreJson,
+        item.notes,
+        item.createdAt,
+      );
+    });
+
+    gateDecisions.forEach((item) => {
+      insertGateDecision.run(
+        item.gateId,
+        item.runId,
+        item.decision,
+        item.summary,
+        item.createdAt,
+      );
+    });
+
+    policyObjects.forEach((item) => {
+      insertPolicyObject.run(
+        item.policyId,
+        item.policyType,
+        item.title,
+        item.owner,
+        item.payloadJson,
+        item.createdAt,
+        item.updatedAt,
+      );
+    });
+
+    templateObjects.forEach((item) => {
+      insertTemplateObject.run(
+        item.templateId,
+        item.title,
+        item.owner,
+        item.payloadJson,
+        item.createdAt,
+        item.updatedAt,
+      );
+    });
+
+    skillObjects.forEach((item) => {
+      insertSkillObject.run(
+        item.skillId,
+        item.title,
+        item.owner,
+        item.payloadJson,
+        item.createdAt,
+        item.updatedAt,
+      );
+    });
+
+    ontologyRegistry.forEach((item) => {
+      insertOntologyRegistry.run(
+        item.registryId,
+        item.itemType,
+        item.name,
+        item.status,
+        item.owner,
+        item.currentVersion,
+        item.sourceTable,
+        item.sourceId,
+        item.updatedAt,
+      );
+    });
+
+    ontologyVersions.forEach((item) => {
+      insertOntologyVersion.run(
+        item.versionId,
+        item.registryId,
+        item.version,
+        item.payloadJson,
+        item.changeNote,
+        item.createdAt,
+      );
+    });
+
+    sourceAdapters.forEach((item) => {
+      insertSourceAdapter.run(
+        item.adapterId,
+        item.name,
+        item.mode,
+        item.owner,
+        item.connectorKey,
+        item.status,
+        item.createdAt,
+        item.updatedAt,
+      );
+    });
+
+    bridgeConfigs.forEach((item) => {
+      insertBridgeConfig.run(
+        item.configId,
+        item.adapterId,
+        item.configJson,
+        item.createdAt,
+        item.updatedAt,
+      );
+    });
+
+    connectorRegistry.forEach((item) => {
+      insertConnectorRegistry.run(
+        item.connectorId,
+        item.connectorKey,
+        item.mode,
+        item.title,
+        item.status,
+        item.description,
+        item.createdAt,
+        item.updatedAt,
+      );
+    });
+
+    syncRecords.forEach((item) => {
+      insertSyncRecord.run(
+        item.syncId,
+        item.adapterId,
+        item.mode,
+        item.startedAt,
+        item.finishedAt,
+        item.rowsImported,
+        item.mappingErrorsJson,
+        item.freshnessSeconds,
+        item.status,
+      );
     });
 
     ontologyEntities.forEach((entity) => {
@@ -986,6 +2474,20 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
           chunk.stage,
           chunk.role,
           chunk.assetType,
+        );
+      });
+    });
+
+    projects.forEach((project) => {
+      (project.knowledgeFeedbackRecords ?? []).forEach((record) => {
+        insertKnowledgeFeedbackRecord.run(
+          record.feedbackId,
+          record.sourceType,
+          record.sourceId,
+          record.targetAssetId,
+          record.feedbackMode,
+          record.status,
+          record.createdAt,
         );
       });
     });

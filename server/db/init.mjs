@@ -12,9 +12,20 @@ const COLUMN_MIGRATIONS = {
   reviews: {
     source_action_id: "TEXT",
     source_run_id: "TEXT",
+    review_status: "TEXT",
+    review_type: "TEXT",
+    review_quality_score: "REAL",
+    is_promoted_to_asset: "INTEGER",
+    updated_at: "TEXT",
   },
   asset_candidates: {
     source_review_id: "TEXT",
+    asset_type: "TEXT",
+    review_status: "TEXT",
+    publish_status: "TEXT",
+    reusability_score: "REAL",
+    feedback_to_knowledge: "TEXT",
+    updated_at: "TEXT",
   },
 };
 

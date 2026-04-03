@@ -1,10 +1,13 @@
 import {
   Activity,
   AlertTriangle,
+  Blocks,
   Database,
   FileText,
+  FlaskConical,
   LayoutDashboard,
   Package,
+  PlugZap,
   RefreshCw,
   Rocket,
   Target,
@@ -34,6 +37,9 @@ export const navigation = [
   { name: "风险与审批", icon: AlertTriangle, path: "/risk-approval" },
   { name: "复盘沉淀", icon: FileText, path: "/review-assets" },
   { name: "经验资产库", icon: Database, path: "/asset-library" },
+  { name: "评测中心", icon: FlaskConical, path: "/eval-center" },
+  { name: "Ontology Registry", icon: Blocks, path: "/ontology-registry" },
+  { name: "Bridge 诊断", icon: PlugZap, path: "/bridge-diagnostics" },
 ] as const;
 
 export function getPageTitle(pathname: string) {
@@ -43,6 +49,9 @@ export function getPageTitle(pathname: string) {
   if (pathname === "/product-director") return "产品研发总监工作台";
   if (pathname === "/operations-director") return "运营与营销总监工作台";
   if (pathname === "/visual-director") return "视觉总监工作台";
+  if (pathname === "/eval-center") return "评测中心";
+  if (pathname === "/ontology-registry") return "Ontology Registry";
+  if (pathname === "/bridge-diagnostics") return "Bridge 诊断";
   const item = navigation.find((entry) => "path" in entry && entry.path === pathname);
   return item?.name ?? "控制台";
 }

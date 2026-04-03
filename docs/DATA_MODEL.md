@@ -16,7 +16,7 @@ The modeling goals are:
 This document defines the canonical data model for the prototype stage.
 核心用途：语义底座 + 对象骨架 + 状态协议 + AI/Agent 输出协议 + 页面复用基础 + 资产沉淀接口。
 
-### 1.1 Batch 4 已落地的 Local Sandbox 物理模型
+### 1.1 Batch 6 已落地的 Local Sandbox 物理模型
 
 当前仓库在 canonical domain model 之下，已经落地了第一批本地 SQLite 表结构，用于承载 Local Pilot Sandbox：
 
@@ -34,6 +34,27 @@ This document defines the canonical data model for the prototype stage.
 - `writeback_records`
 - `reviews`
 - `asset_candidates`
+- `published_assets`
+- `evaluation_records`
+- `knowledge_feedback_records`
+- `workflow_runs`
+- `task_runs`
+- `runtime_events`
+- `retry_records`
+- `eval_cases`
+- `eval_suites`
+- `eval_runs`
+- `eval_results`
+- `gate_decisions`
+- `ontology_registry`
+- `ontology_versions`
+- `policy_objects`
+- `template_objects`
+- `skill_objects`
+- `source_adapters`
+- `bridge_configs`
+- `sync_records`
+- `connector_registry`
 
 这些表当前由 `server/db/schema.mjs`、`server/db/init.mjs`、`server/db/seed.mjs` 管理，并通过本地 API 暴露给前端。
 
@@ -133,6 +154,69 @@ Batch 4 在 Batch 1~3 的基础上，把本地 mock 执行闭环正式落进 SQL
 - `asset_candidates` 表已扩展 `source_review_id`
 - 不单独新增 `action_lineage` 主表，而是通过 `actions -> execution_runs -> reviews -> asset_candidates` 的关联字段组合 lineage
 - 当前 execution 仍是 mock connector，但 writeback / review / asset candidate 已真实写入 SQLite
+
+### 1.5 Batch 5 已新增的治理、沉淀、回流与评测对象
+
+Batch 5 在 Batch 1~4 的基础上，把治理层正式落进 SQLite / API / repository：
+
+- `PublishedAsset`
+- `ActionCenterItem`
+- `ActionCenterResponse`
+- `ReviewCenterItem`
+- `ReviewCenterResponse`
+- `AssetLibraryItem`
+- `AssetLibraryResponse`
+- `KnowledgeFeedbackRecord`
+- `EvaluationRecord`
+- `EvaluationSummary`
+- `ProjectGovernanceSummary`
+
+其中：
+
+- `reviews` 已扩展 `review_status`、`review_type`、`review_quality_score`、`is_promoted_to_asset`、`updated_at`
+- `asset_candidates` 已扩展 `asset_type`、`review_status`、`publish_status`、`reusability_score`、`feedback_to_knowledge`、`updated_at`
+- `published_assets` 保存 candidate 发布后的独立资产对象
+- `knowledge_feedback_records` 记录 review / asset -> knowledge 的回流链路
+- `evaluation_records` 保存 decision / action / execution / review / asset 的最小规则评测结果
+- `ActionCenterItem`、`ReviewCenterItem`、`AssetLibraryItem` 属于 server compose object，而不是新的持久化主表
+
+### 1.6 Batch 6 已新增的运行内核、评测、Ontology 与 Bridge 对象
+
+Batch 6 在 Batch 1~5 的基础上，把更接近生产级底座的四个内核层落进 SQLite / API / repository：
+
+- `WorkflowRun`
+- `TaskRun`
+- `RuntimeEvent`
+- `RuntimeStatus`
+- `RetryRecord`
+- `EvalCase`
+- `EvalSuite`
+- `EvalRun`
+- `EvalResult`
+- `GateDecision`
+- `OntologyRegistryItem`
+- `PolicyObject`
+- `TemplateObject`
+- `SkillObject`
+- `OntologyVersionRecord`
+- `OntologyLineage`
+- `SourceAdapter`
+- `BridgeConfig`
+- `SyncRecord`
+- `ConnectorRegistryItem`
+- `ProjectRuntimeSummary`
+- `EvalHarnessSummary`
+- `ProjectOntologyReferences`
+- `ProjectBridgeSummary`
+
+其中：
+
+- `workflow_runs`、`task_runs`、`runtime_events`、`retry_records` 构成 `workflow -> task -> event` 的运行时状态机
+- `eval_cases`、`eval_suites`、`eval_runs`、`eval_results`、`gate_decisions` 构成可复跑的评测 harness
+- `ontology_registry`、`ontology_versions`、`policy_objects`、`template_objects`、`skill_objects` 构成最小 ontology governance 索引
+- `source_adapters`、`bridge_configs`、`sync_records`、`connector_registry` 构成桥接协议与 sync diagnostics
+- `role_profile` 当前不单独建主表，而通过 `ontology_registry + ontology_versions` 承载 payload
+- Batch 5 的 `evaluation_records` 继续保留，用于治理摘要评分历史；Batch 6 的 harness 表用于复跑和 gate decision
 
 ---
 
@@ -363,6 +447,61 @@ export type AssetPublishStatus =
   | "draft"
   | "published"
   | "deprecated";
+```
+
+### 3.18 Runtime Status
+
+```ts
+export type RuntimeStatus =
+  | "queued"
+  | "running"
+  | "awaiting_approval"
+  | "awaiting_writeback"
+  | "completed"
+  | "failed"
+  | "retryable"
+  | "cancelled";
+```
+
+### 3.19 Eval Scope
+
+```ts
+export type EvalScope =
+  | "decision"
+  | "action"
+  | "execution"
+  | "review"
+  | "asset"
+  | "role_consistency"
+  | "lineage_integrity";
+```
+
+### 3.20 Gate Decision
+
+```ts
+export type GateDecisionStatus =
+  | "pass"
+  | "warning"
+  | "fail";
+```
+
+### 3.21 Ontology Governance Status
+
+```ts
+export type OntologyGovernanceStatus =
+  | "draft"
+  | "active"
+  | "deprecated"
+  | "archived";
+```
+
+### 3.22 Bridge Mode
+
+```ts
+export type BridgeMode =
+  | "local_mock"
+  | "file_bridge"
+  | "api_bridge";
 ```
 
 ---

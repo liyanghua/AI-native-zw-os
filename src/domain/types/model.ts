@@ -191,6 +191,20 @@ export type AssetPublishStatus =
   | "published"
   | "deprecated";
 
+export type ReviewStatus =
+  | "draft"
+  | "generated"
+  | "approved"
+  | "archived";
+
+export type ReviewType =
+  | "execution_review"
+  | "product_review"
+  | "creative_review"
+  | "governance_review";
+
+export type KnowledgeFeedbackStatus = "not_started" | "synced";
+
 export interface EntityMeta {
   id: string;
   createdAt: string;
@@ -760,6 +774,10 @@ export interface ReviewSummary extends EntityMeta {
   keyOutcome?: string;
   metricImpact?: string;
   nextSuggestion?: string;
+  reviewStatus?: ReviewStatus;
+  reviewType?: ReviewType;
+  reviewQualityScore?: number;
+  isPromotedToAsset?: boolean;
 }
 
 export interface ReviewLineage {
@@ -782,6 +800,10 @@ export interface AssetCandidate extends EntityMeta {
   applicability: ApplicabilitySpec;
   contentMarkdown?: string;
   status?: string;
+  reviewStatus?: ReviewStatus;
+  publishStatus?: "candidate" | "published" | "deprecated";
+  reusabilityScore?: number;
+  feedbackToKnowledge?: KnowledgeFeedbackStatus;
 }
 
 export interface AssetLineage {
@@ -793,12 +815,186 @@ export interface AssetLineage {
 }
 
 export interface PublishedAsset extends EntityMeta {
+  assetId?: string;
+  candidateId?: string;
+  projectId?: string;
+  sourceReviewId?: string;
   type: AssetType;
+  assetType?: AssetType;
   title: string;
+  contentMarkdown?: string;
   summary: string;
   sourceProjectId?: string;
   reuseCount?: number;
   status: AssetPublishStatus;
+  publishStatus?: "candidate" | "published" | "deprecated";
+  publishedAt?: string;
+}
+
+export interface GovernanceStatus {
+  state: "healthy" | "needs_attention" | "in_progress" | "completed";
+  summary: string;
+}
+
+export interface ActionCenterItem {
+  actionId: string;
+  projectId: string;
+  projectName: string;
+  role?: RoleType | null;
+  actionDomain?: ActionDomain | null;
+  actionType: ActionType;
+  description: string;
+  approvalStatus: ApprovalStatus;
+  executionStatus: ExecutionStatus;
+  workflowId?: string | null;
+  workflowStatus?: RuntimeStatus | null;
+  workflowSummary?: string | null;
+  priority: number;
+  owner: string;
+  updatedAt: string;
+}
+
+export interface ActionCenterResponse {
+  items: ActionCenterItem[];
+  summary: {
+    total: number;
+    pendingApprovals: number;
+    queued: number;
+    inProgress: number;
+    completed: number;
+  };
+  filters: {
+    role: RoleType | null;
+    actionDomain: ActionDomain | null;
+    approvalStatus: ApprovalStatus | null;
+    executionStatus: ExecutionStatus | null;
+    projectId: string | null;
+  };
+}
+
+export interface ReviewCenterItem {
+  reviewId: string;
+  projectId: string;
+  projectName: string;
+  sourceActionId?: string | null;
+  reviewType: ReviewType;
+  reviewStatus: ReviewStatus;
+  reviewQualityScore: number;
+  summary: string;
+  isPromotedToAsset: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReviewCenterResponse {
+  items: ReviewCenterItem[];
+  summary: {
+    total: number;
+    approved: number;
+    generated: number;
+    promoted: number;
+    promoteable: number;
+  };
+  filters: {
+    projectId: string | null;
+    reviewStatus: ReviewStatus | null;
+    reviewType: ReviewType | null;
+    sourceActionId: string | null;
+  };
+}
+
+export interface AssetLibraryItem {
+  kind: "candidate" | "published";
+  candidateId?: string | null;
+  assetId?: string | null;
+  projectId: string;
+  projectName: string;
+  sourceReviewId?: string | null;
+  assetType: AssetType;
+  title: string;
+  publishStatus: "candidate" | "published" | "deprecated";
+  reviewStatus?: ReviewStatus;
+  reusabilityScore: number;
+  feedbackToKnowledge: KnowledgeFeedbackStatus;
+  updatedAt: string;
+}
+
+export interface AssetLibraryResponse {
+  items: AssetLibraryItem[];
+  summary: {
+    total: number;
+    candidates: number;
+    published: number;
+    feedbackSynced: number;
+  };
+  filters: {
+    projectId: string | null;
+    publishStatus: string | null;
+    assetType: AssetType | null;
+  };
+}
+
+export interface KnowledgeFeedbackRecord {
+  feedbackId: string;
+  sourceType: "review" | "asset_candidate" | "published_asset";
+  sourceId: string;
+  targetAssetId: string;
+  feedbackMode: string;
+  status: KnowledgeFeedbackStatus;
+  createdAt: string;
+}
+
+export interface EvaluationRecord {
+  evaluationId: string;
+  projectId: string;
+  decisionId?: string | null;
+  actionId?: string | null;
+  runId?: string | null;
+  reviewId?: string | null;
+  candidateId?: string | null;
+  evaluationType: string;
+  relatedObjectType: "decision" | "action" | "execution" | "review" | "asset";
+  relatedObjectId: string;
+  score: number;
+  scoreJson: Record<string, unknown>;
+  notes: string;
+  createdAt: string;
+}
+
+export interface EvaluationSummary {
+  total: number;
+  averageScore: number;
+  byType: Record<string, number>;
+}
+
+export interface ProjectGovernanceSummary {
+  projectId: string;
+  actionsSummary: {
+    total: number;
+    pendingApprovals: number;
+    inProgress: number;
+    completed: number;
+    latestAction: ActionCenterItem | null;
+  };
+  reviewSummary: {
+    total: number;
+    approved: number;
+    latestReview: ReviewCenterItem | null;
+  };
+  assetSummary: {
+    total: number;
+    candidates: number;
+    published: number;
+    latestAsset: AssetLibraryItem | null;
+  };
+  evaluationSummary: EvaluationSummary & {
+    latestEvaluation: EvaluationRecord | null;
+  };
+  feedbackSummary: {
+    total: number;
+    synced: number;
+    latestFeedback: KnowledgeFeedbackRecord | null;
+  };
 }
 
 export interface PulseItem extends EntityMeta {
@@ -1033,6 +1229,285 @@ export interface RoleDashboardResponse {
   riskCards: RoleRiskCard[];
   opportunityCards: RoleOpportunityCard[];
   assetSummary: RoleAssetSummaryCard[];
+}
+
+export type RuntimeStatus =
+  | "queued"
+  | "running"
+  | "awaiting_approval"
+  | "awaiting_writeback"
+  | "completed"
+  | "failed"
+  | "retryable"
+  | "cancelled";
+
+export type WorkflowTaskType =
+  | "approval_gate"
+  | "agent_trigger"
+  | "mock_execution"
+  | "writeback"
+  | "review_generate"
+  | "asset_publish";
+
+export interface WorkflowRun {
+  workflowId: string;
+  projectId: string;
+  actionId: string;
+  role: RoleType;
+  actionDomain: ActionDomain;
+  status: RuntimeStatus;
+  currentTaskType?: WorkflowTaskType | null;
+  startedAt: string;
+  finishedAt?: string | null;
+  lastEventAt: string;
+}
+
+export interface TaskRun {
+  taskId: string;
+  workflowId: string;
+  projectId: string;
+  actionId: string;
+  runId?: string | null;
+  taskType: WorkflowTaskType;
+  attempt: number;
+  status: RuntimeStatus;
+  requestPayload?: Record<string, unknown> | null;
+  responsePayload?: Record<string, unknown> | null;
+  errorMessage?: string | null;
+  startedAt: string;
+  finishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RuntimeEvent {
+  eventId: string;
+  workflowId: string;
+  taskId?: string | null;
+  projectId: string;
+  actionId: string;
+  eventType: string;
+  status: RuntimeStatus;
+  summary: string;
+  payload?: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface RetryRecord {
+  retryId: string;
+  workflowId: string;
+  originalTaskId: string;
+  newTaskId: string;
+  operator: string;
+  reason?: string | null;
+  createdAt: string;
+}
+
+export interface ProjectRuntimeSummary {
+  projectId: string;
+  counts: Record<RuntimeStatus, number>;
+  latestWorkflow: WorkflowRun | null;
+  latestEvent: RuntimeEvent | null;
+  recentEvents?: RuntimeEvent[];
+}
+
+export interface EvalCase {
+  caseId: string;
+  name: string;
+  scope:
+    | "decision"
+    | "action"
+    | "execution"
+    | "review"
+    | "asset"
+    | "role_consistency"
+    | "lineage_integrity";
+  severity: "low" | "medium" | "high";
+  status: "active" | "deprecated" | "draft";
+  ruleSpec: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface EvalSuite {
+  suiteId: string;
+  name: string;
+  description: string;
+  status: "active" | "deprecated" | "draft";
+  caseIds: string[];
+  createdAt: string;
+}
+
+export interface EvalRun {
+  runId: string;
+  projectId: string;
+  suiteId: string;
+  status: "queued" | "running" | "completed" | "failed";
+  summary: {
+    total: number;
+    averageScore: number;
+    byStatus: Record<string, number>;
+  };
+  startedAt: string;
+  finishedAt?: string | null;
+}
+
+export interface EvalResult {
+  resultId: string;
+  runId: string;
+  caseId: string;
+  relatedObjectType: string;
+  relatedObjectId: string;
+  status: "pass" | "warning" | "fail";
+  scoreJson: Record<string, unknown>;
+  notes: string;
+  createdAt: string;
+}
+
+export interface GateDecision {
+  gateId: string;
+  runId: string;
+  decision: "pass" | "warning" | "fail";
+  summary: string;
+  createdAt: string;
+}
+
+export interface EvalHarnessSummary {
+  summary: {
+    total: number;
+    averageScore: number;
+    byStatus: Record<string, number>;
+  };
+  latestRun: EvalRun | null;
+  latestGateDecision: GateDecision | null;
+}
+
+export type OntologyGovernanceStatus =
+  | "draft"
+  | "active"
+  | "deprecated"
+  | "archived";
+
+export interface OntologyRegistryItem {
+  registryId: string;
+  itemType:
+    | "role_profile"
+    | "stage_rule"
+    | "action_policy"
+    | "review_pattern"
+    | "asset_type"
+    | "template"
+    | "skill";
+  name: string;
+  status: OntologyGovernanceStatus;
+  owner: string;
+  currentVersion: number;
+  sourceTable?: string | null;
+  sourceId?: string | null;
+  updatedAt: string;
+}
+
+export interface PolicyObject {
+  policyId: string;
+  policyType: string;
+  title: string;
+  owner: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TemplateObject {
+  templateId: string;
+  title: string;
+  owner: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SkillObject {
+  skillId: string;
+  title: string;
+  owner: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OntologyVersionRecord {
+  versionId: string;
+  registryId: string;
+  version: number;
+  payload: Record<string, unknown>;
+  changeNote?: string | null;
+  createdAt: string;
+}
+
+export interface OntologyLineage {
+  referenceType: string;
+  referenceId: string;
+  label: string;
+}
+
+export interface ProjectOntologyReferences {
+  projectId: string;
+  references: OntologyRegistryItem[];
+}
+
+export type BridgeMode = "local_mock" | "file_bridge" | "api_bridge";
+
+export interface SyncRecord {
+  syncId: string;
+  adapterId: string;
+  mode: BridgeMode;
+  startedAt: string;
+  finishedAt?: string | null;
+  rowsImported: number;
+  mappingErrors: Array<Record<string, unknown>>;
+  freshnessSeconds: number;
+  status: string;
+}
+
+export interface BridgeConfig {
+  configId?: string;
+  adapterId?: string;
+  mode?: BridgeMode;
+  [key: string]: unknown;
+}
+
+export interface SourceAdapter {
+  adapterId: string;
+  name: string;
+  mode: BridgeMode;
+  owner: string;
+  connectorKey: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  config: BridgeConfig;
+  latestSync: SyncRecord | null;
+}
+
+export interface ConnectorRegistryItem {
+  connectorId: string;
+  connectorKey: string;
+  mode: BridgeMode;
+  title: string;
+  status: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectBridgeSummary {
+  projectId: string;
+  adapterSummary: Array<{
+    adapterId: string;
+    name: string;
+    mode: BridgeMode;
+    status: string;
+    latestSync: SyncRecord | null;
+  }>;
 }
 
 export interface ProjectReviewRecord {

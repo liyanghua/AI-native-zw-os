@@ -1,0 +1,84 @@
+{
+  "projects": [
+    {
+      "projectId": "bridge-import-canvas-lite",
+      "name": "Canvas Lite Bridge Import",
+      "stage": "launch_validation",
+      "status": "active",
+      "owner": "桥接系统",
+      "priority": 2,
+      "category": "travel_accessory",
+      "createdAt": "2026-04-02T12:00:00+08:00",
+      "updatedAt": "2026-04-02T12:05:00+08:00",
+      "snapshot": {
+        "snapshotId": "snapshot-bridge-import-canvas-lite",
+        "projectId": "bridge-import-canvas-lite",
+        "summary": "通过 file bridge 导入的测试项目，用于验证桥接链路。",
+        "currentProblem": "素材和转化承接存在断层。",
+        "currentGoal": "验证桥接导入后项目是否可进入统一工作台。",
+        "currentRisk": "如果映射规则不稳定，桥接项目会出现字段漂移。",
+        "createdAt": "2026-04-02T12:05:00+08:00"
+      },
+      "kpis": [
+        {
+          "metricId": "metric-bridge-import-canvas-lite-ctr",
+          "metricName": "ctr",
+          "metricValue": 4.6,
+          "metricUnit": "%",
+          "metricDirection": "up",
+          "capturedAt": "2026-04-02T12:05:00+08:00"
+        },
+        {
+          "metricId": "metric-bridge-import-canvas-lite-cvr",
+          "metricName": "cvr",
+          "metricValue": 1.2,
+          "metricUnit": "%",
+          "metricDirection": "down",
+          "capturedAt": "2026-04-02T12:05:00+08:00"
+        }
+      ],
+      "opportunities": [
+        {
+          "opportunityId": "opportunity-bridge-import-canvas-lite",
+          "title": "桥接导入后可直接纳入 launch 验证池",
+          "signalType": "file_bridge",
+          "description": "说明桥接对象可以进入同源项目管理。",
+          "priority": 2,
+          "createdAt": "2026-04-02T12:05:00+08:00"
+        }
+      ],
+      "risks": [
+        {
+          "riskId": "risk-bridge-import-canvas-lite",
+          "riskType": "mapping_risk",
+          "riskLevel": "medium",
+          "description": "字段映射需要持续治理。",
+          "createdAt": "2026-04-02T12:05:00+08:00"
+        }
+      ],
+      "actions": [
+        {
+          "actionId": "action-bridge-import-canvas-lite-visual-refresh",
+          "decisionId": "decision-bridge-import-canvas-lite",
+          "role": "visual_director",
+          "actionDomain": "visual",
+          "actionType": "refresh_main_visual",
+          "description": "为桥接项目补齐首屏主图表达。",
+          "owner": "桥接视觉组",
+          "requiredApproval": false,
+          "approvalStatus": "not_required",
+          "executionStatus": "suggested",
+          "expectedMetric": "ctr",
+          "expectedDirection": "up",
+          "confidence": "medium",
+          "createdAt": "2026-04-02T12:05:00+08:00",
+          "updatedAt": "2026-04-02T12:05:00+08:00"
+        }
+      ]
+    },
+    {
+      "projectId": "bridge-import-bad-row",
+      "stage": "growth_optimization"
+    }
+  ]
+}

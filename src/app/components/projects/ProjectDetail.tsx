@@ -110,6 +110,179 @@ export function ProjectDetail() {
         </div>
       ) : null}
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">治理摘要</h2>
+            <p className="mt-1 text-sm text-slate-500">Batch 5 起，项目不只看执行闭环，还要显式看到动作、复盘、资产、评测与知识回流状态。</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to={`/action-center?projectId=${workbench.project.projectId}`}
+              className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            >
+              去动作中心
+            </Link>
+            <Link
+              to={`/review-assets?projectId=${workbench.project.projectId}`}
+              className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            >
+              去复盘中心
+            </Link>
+            <Link
+              to={`/asset-library?projectId=${workbench.project.projectId}`}
+              className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            >
+              去资产库
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-5 gap-4">
+          <StatCard
+            label="动作状态"
+            value={`${workbench.governance.actionsSummary.total} 个 / ${workbench.governance.actionsSummary.pendingApprovals} 待审批`}
+          />
+          <StatCard
+            label="复盘状态"
+            value={`${workbench.governance.reviewSummary.total} 条 / ${workbench.governance.reviewSummary.approved} 已批准`}
+          />
+          <StatCard
+            label="资产状态"
+            value={`${workbench.governance.assetSummary.total} 条 / ${workbench.governance.assetSummary.published} 已发布`}
+          />
+          <StatCard
+            label="评测摘要"
+            value={`${workbench.governance.evaluationSummary.total} 条 / 均分 ${workbench.governance.evaluationSummary.averageScore}`}
+          />
+          <StatCard
+            label="知识回流"
+            value={`${workbench.governance.feedbackSummary.total} 条 / ${workbench.governance.feedbackSummary.synced} 已同步`}
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <ContextCard
+            label="Latest workflow"
+            value={workbench.governance.actionsSummary.latestAction?.description ?? "当前还没有新的治理动作摘要。"}
+          />
+          <ContextCard
+            label="Latest review"
+            value={workbench.governance.reviewSummary.latestReview?.summary ?? "当前还没有新的复盘摘要。"}
+          />
+          <ContextCard
+            label="Latest asset / feedback"
+            value={
+              workbench.governance.assetSummary.latestAsset
+                ? `${workbench.governance.assetSummary.latestAsset.title} · ${workbench.governance.assetSummary.latestAsset.publishStatus}`
+                : workbench.governance.feedbackSummary.latestFeedback
+                  ? `知识回流 ${workbench.governance.feedbackSummary.latestFeedback.targetAssetId}`
+                  : "当前还没有资产治理或知识回流摘要。"
+            }
+          />
+        </div>
+      </section>
+
+      <section className="grid grid-cols-[1.1fr,0.9fr] gap-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Runtime Timeline</h2>
+            <p className="mt-1 text-sm text-slate-500">Batch 6 起，执行闭环进入 workflow → task → event 的运行内核，可追踪 retry / cancel / writeback 等轨迹。</p>
+          </div>
+
+          <div className="grid grid-cols-4 gap-3">
+            <StatCard label="queued" value={String(workbench.runtime.counts.queued)} />
+            <StatCard label="retryable" value={String(workbench.runtime.counts.retryable)} />
+            <StatCard label="failed" value={String(workbench.runtime.counts.failed)} />
+            <StatCard label="completed" value={String(workbench.runtime.counts.completed)} />
+          </div>
+
+          <ContextCard
+            label="Latest workflow"
+            value={
+              workbench.runtime.latestWorkflow
+                ? `${workbench.runtime.latestWorkflow.workflowId} · ${workbench.runtime.latestWorkflow.status}`
+                : "当前项目还没有 workflow。"
+            }
+          />
+
+          <div className="space-y-2">
+            {(workbench.runtime.recentEvents ?? []).length === 0 ? (
+              <EmptyCard title="暂无 runtime event" description="当前项目还没有记录到 workflow event timeline。" />
+            ) : (
+              (workbench.runtime.recentEvents ?? []).map((event) => (
+                <div key={event.eventId} className="rounded-xl border border-slate-200 p-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">{event.summary}</div>
+                      <div className="mt-1 text-xs text-slate-500">{event.eventType} · {event.status}</div>
+                    </div>
+                    <div className="text-xs text-slate-500">{event.createdAt}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Eval / Ontology / Bridge</h2>
+            <p className="mt-1 text-sm text-slate-500">同一个项目对象继续暴露 latest gate、ontology 引用与 bridge 新鲜度，方便做更接近生产态的运维与验收。</p>
+          </div>
+
+          <ContextCard
+            label="Latest eval gate"
+            value={
+              workbench.eval.latestGateDecision
+                ? `${workbench.eval.latestGateDecision.decision} · ${workbench.eval.latestGateDecision.summary}`
+                : "当前项目还没有 eval gate。"
+            }
+          />
+
+          <ContextCard
+            label="Ontology references"
+            value={
+              workbench.ontology.references.length > 0
+                ? workbench.ontology.references.map((item) => item.name).slice(0, 4).join(" / ")
+                : "当前项目还没有 ontology 引用。"
+            }
+          />
+
+          <ContextCard
+            label="Bridge freshness"
+            value={
+              workbench.bridge.adapterSummary.length > 0
+                ? workbench.bridge.adapterSummary
+                    .map((adapter) => `${adapter.name}: ${adapter.latestSync?.freshnessSeconds ?? "-"}s`)
+                    .join(" · ")
+                : "当前项目还没有 bridge 诊断摘要。"
+            }
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/eval-center"
+              className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            >
+              去评测中心
+            </Link>
+            <Link
+              to="/ontology-registry"
+              className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            >
+              去 Ontology Registry
+            </Link>
+            <Link
+              to="/bridge-diagnostics"
+              className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+            >
+              去 Bridge Diagnostics
+            </Link>
+          </div>
+        </section>
+      </section>
+
       <section className="grid grid-cols-3 gap-4">
         <ContextCard label="当前问题" value={workbench.latestSnapshot?.currentProblem ?? "待补充"} />
         <ContextCard label="当前目标" value={workbench.latestSnapshot?.currentGoal ?? "待补充"} />

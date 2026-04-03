@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
 import { getProjectDetail } from "./projects.mjs";
+import {
+  recordAgentTriggered,
+  recordApprovalDecision,
+  recordAssetPublished,
+  recordMockExecutionResult,
+  recordReviewGenerated,
+  recordWritebackCompleted,
+} from "./runtime.mjs";
 
 function now() {
   return new Date().toISOString();
@@ -435,6 +443,7 @@ export function approveAction(db, actionId, input) {
     approvalStatus: "approved",
     updatedAt: timestamp,
   });
+  recordApprovalDecision(db, actionId, "approved", input.approvedBy, input.reason);
 
   return {
     action: updatedAction,
@@ -485,6 +494,7 @@ export function rejectAction(db, actionId, input) {
     executionStatus: "canceled",
     updatedAt: timestamp,
   });
+  recordApprovalDecision(db, actionId, "rejected", input.approvedBy, input.reason);
 
   return {
     action: updatedAction,
@@ -563,6 +573,7 @@ export function triggerAgent(db, input) {
     timestamp,
     input.projectId,
   );
+  recordAgentTriggered(db, input.actionId, runId);
 
   return {
     action: mapActionRow(getActionRow(db, input.actionId)),
@@ -612,6 +623,7 @@ export function runMockExecution(db, input) {
     executionStatus: "in_progress",
     updatedAt: timestamp,
   });
+  recordMockExecutionResult(db, input.actionId, input.runId, executionResult);
 
   return {
     run: mapExecutionRunRow(getRunRow(db, input.runId)),
@@ -727,14 +739,16 @@ export function writebackExecutionRun(db, runId) {
     metricDirection: row.metric_direction,
     capturedAt: row.captured_at,
   }));
+  const writebackRecord = mapWritebackRecordRow(
+    db.prepare("SELECT * FROM writeback_records WHERE writeback_id = ?").get(writebackId),
+  );
+  recordWritebackCompleted(db, run.action_id, runId, writebackRecord);
 
   return {
     action,
     updatedProjectSnapshot,
     updatedKpis,
-    writebackRecord: mapWritebackRecordRow(
-      db.prepare("SELECT * FROM writeback_records WHERE writeback_id = ?").get(writebackId),
-    ),
+    writebackRecord,
     latestLog,
   };
 }
@@ -796,17 +810,40 @@ export function generateReview(db, input) {
       source_action_id,
       source_run_id,
       review_summary,
+      review_status,
+      review_type,
+      review_quality_score,
+      is_promoted_to_asset,
       outcome_json,
       created_at
+      , updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(reviewId, input.projectId, input.actionId, input.runId, reviewSummary, JSON.stringify(outcome), timestamp);
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    reviewId,
+    input.projectId,
+    input.actionId,
+    input.runId,
+    reviewSummary,
+    "generated",
+    action.action_domain === "operations"
+      ? "execution_review"
+      : action.action_domain === "product_rnd"
+        ? "product_review"
+        : "creative_review",
+    78,
+    0,
+    JSON.stringify(outcome),
+    timestamp,
+    timestamp,
+  );
 
   db.prepare("UPDATE projects SET status = ?, updated_at = ? WHERE project_id = ?").run(
     "reviewing",
     timestamp,
     input.projectId,
   );
+  recordReviewGenerated(db, reviewId);
 
   return {
     review: mapReviewRow(
@@ -855,13 +892,34 @@ export function publishAssetCandidate(db, input) {
       candidate_id,
       project_id,
       source_review_id,
+      asset_type,
       title,
       content_markdown,
+      review_status,
+      publish_status,
+      reusability_score,
+      feedback_to_knowledge,
       status,
-      created_at
+      created_at,
+      updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(candidateId, input.projectId, input.reviewId, title, contentMarkdown, "draft", timestamp);
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    candidateId,
+    input.projectId,
+    input.reviewId,
+    "template",
+    title,
+    contentMarkdown,
+    "approved",
+    "candidate",
+    72,
+    "not_started",
+    "draft",
+    timestamp,
+    timestamp,
+  );
+  recordAssetPublished(db, input.reviewId, candidateId, timestamp);
 
   return {
     assetCandidate: mapAssetCandidateRow(

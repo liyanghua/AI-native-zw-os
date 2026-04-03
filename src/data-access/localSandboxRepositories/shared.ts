@@ -1,12 +1,17 @@
 import { getLifecycleStageLabel, getProjectStatusLabel } from "../../domain/runtime/labels";
 import type {
+  ApiActionCenterResponseDto,
   ApiActionDto,
   ApiActionLineageItemDto,
   ApiApprovalDto,
+  ApiAssetLibraryResponseDto,
+  ApiAssetCandidateDto,
   ApiExecutionLogDto,
   ApiExecutionResultDto,
   ApiExecutionRunDto,
-  ApiAssetCandidateDto,
+  ApiEvaluationRecordDto,
+  ApiEvaluationsResponseDto,
+  ApiFeedbackToKnowledgeResponseDto,
   ApiCompileContextResponseDto,
   ApiCompileDecisionResponseDto,
   ApiEvidenceItemDto,
@@ -16,8 +21,11 @@ import type {
   ApiKnowledgeSearchResultDto,
   ApiOpportunityDto,
   ApiProjectDetailDto,
+  ApiProjectGovernanceResponseDto,
   ApiProjectLineageResponseDto,
   ApiProjectListItemDto,
+  ApiPublishedAssetDto,
+  ApiReviewCenterResponseDto,
   ApiRoleDashboardResponseDto,
   ApiRoleStoryDto,
   ApiReviewDto,
@@ -26,33 +34,47 @@ import type {
 } from "../../domain/types/api";
 import type {
   ActionDomain,
+  ActionCenterResponse,
   ActionLineage,
   ActionItem,
   ApplicabilitySpec,
   ApprovalRecord,
+  AssetLibraryResponse,
   AssetCandidate,
   AssetType,
   ConfidenceLevel,
   DecisionContext,
   DecisionObject,
+  EvaluationRecord,
+  EvaluationSummary,
   EvidenceItem,
   EvidencePack,
   ExecutionLog,
   ExecutionResult,
   ExecutionRun,
   KpiMetric,
+  KnowledgeFeedbackRecord,
   KnowledgeAsset,
   KnowledgeChunk,
   KnowledgeSearchResult,
   LifecycleStage,
+  ProjectBridgeSummary,
   Opportunity,
+  ProjectOntologyReferences,
+  ProjectRuntimeSummary,
+  ProjectGovernanceSummary,
   ProjectStatus,
+  GateDecision,
+  EvalHarnessSummary,
+  PublishedAsset,
+  ReviewCenterResponse,
   RoleDashboardResponse,
   RecommendedAction,
   RiskSignal,
   RoleStory,
   RoleStoryRole,
   RoleType,
+  ReviewStatus,
   ReviewSummary,
   RoleView,
   WritebackRecord,
@@ -65,6 +87,7 @@ import type {
   LocalSandboxProjectHeader,
   LocalSandboxProjectWorkbenchData,
   LocalSandboxProjectSnapshot,
+  LocalSandboxEvaluationData,
   LocalSandboxStageBoardData,
 } from "./types";
 
@@ -171,7 +194,7 @@ export function mapReview(dto: ApiReviewDto): ReviewSummary {
     sourceActionId: dto.sourceActionId ?? undefined,
     sourceRunId: dto.sourceRunId ?? undefined,
     createdAt: dto.createdAt,
-    updatedAt: dto.createdAt,
+    updatedAt: dto.updatedAt ?? dto.createdAt,
     verdict,
     resultSummary: dto.reviewSummary,
     summary: dto.reviewSummary,
@@ -182,6 +205,10 @@ export function mapReview(dto: ApiReviewDto): ReviewSummary {
     keyOutcome: dto.keyOutcome ?? undefined,
     metricImpact: dto.metricImpact ?? undefined,
     nextSuggestion: dto.nextSuggestion ?? undefined,
+    reviewStatus: dto.reviewStatus ?? undefined,
+    reviewType: dto.reviewType ?? undefined,
+    reviewQualityScore: dto.reviewQualityScore ?? undefined,
+    isPromotedToAsset: dto.isPromotedToAsset ?? undefined,
   };
 }
 
@@ -196,20 +223,46 @@ function buildApplicability(stage: LifecycleStage, type: AssetType): Applicabili
 }
 
 function mapAssetCandidate(dto: ApiAssetCandidateDto, stage: LifecycleStage): AssetCandidate {
+  const assetType = dto.assetType ?? "template";
   return {
     id: dto.candidateId,
     candidateId: dto.candidateId,
     projectId: dto.projectId,
     sourceReviewId: dto.sourceReviewId ?? undefined,
     createdAt: dto.createdAt,
-    updatedAt: dto.createdAt,
-    type: "template",
+    updatedAt: dto.updatedAt ?? dto.createdAt,
+    type: assetType,
     title: dto.title,
     rationale: "Batch 1 仅保留本地沙箱占位内容，后续由 review / asset flow 接手。",
     approvalStatus: "pending",
-    applicability: buildApplicability(stage, "template"),
+    applicability: buildApplicability(stage, assetType),
     contentMarkdown: dto.contentMarkdown,
     status: dto.status,
+    reviewStatus: dto.reviewStatus ?? undefined,
+    publishStatus: dto.publishStatus ?? undefined,
+    reusabilityScore: dto.reusabilityScore ?? undefined,
+    feedbackToKnowledge: dto.feedbackToKnowledge ?? undefined,
+  };
+}
+
+export function mapPublishedAsset(dto: ApiPublishedAssetDto): PublishedAsset {
+  return {
+    id: dto.assetId,
+    assetId: dto.assetId,
+    candidateId: dto.candidateId ?? undefined,
+    projectId: dto.projectId,
+    sourceReviewId: dto.sourceReviewId ?? undefined,
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt,
+    type: dto.assetType,
+    assetType: dto.assetType,
+    title: dto.title,
+    contentMarkdown: dto.contentMarkdown,
+    summary: dto.contentMarkdown.split(/\n/).find((line) => !line.startsWith("#"))?.trim() || dto.title,
+    sourceProjectId: dto.projectId,
+    status: dto.publishStatus === "published" ? "published" : dto.publishStatus === "deprecated" ? "deprecated" : "draft",
+    publishStatus: dto.publishStatus,
+    publishedAt: dto.publishedAt ?? undefined,
   };
 }
 
@@ -319,6 +372,39 @@ export function mapProjectLineage(dto: ApiProjectLineageResponseDto, stage: Life
     decisionId: dto.decisionId,
     actions,
   };
+}
+
+export function mapActionCenterResponse(dto: ApiActionCenterResponseDto): ActionCenterResponse {
+  return dto;
+}
+
+export function mapReviewCenterResponse(dto: ApiReviewCenterResponseDto): ReviewCenterResponse {
+  return dto;
+}
+
+export function mapAssetLibraryResponse(dto: ApiAssetLibraryResponseDto): AssetLibraryResponse {
+  return dto;
+}
+
+export function mapKnowledgeFeedbackRecord(
+  dto: ApiFeedbackToKnowledgeResponseDto["feedback"],
+): KnowledgeFeedbackRecord {
+  return dto;
+}
+
+export function mapEvaluationRecord(dto: ApiEvaluationRecordDto): EvaluationRecord {
+  return dto;
+}
+
+export function mapEvaluationData(dto: ApiEvaluationsResponseDto): LocalSandboxEvaluationData {
+  return {
+    records: dto.records.map(mapEvaluationRecord),
+    summary: dto.summary as EvaluationSummary,
+  };
+}
+
+export function mapProjectGovernance(dto: ApiProjectGovernanceResponseDto): ProjectGovernanceSummary {
+  return dto;
 }
 
 function mapKnowledgeAsset(dto: ApiKnowledgeAssetDto): KnowledgeAsset {
@@ -713,6 +799,11 @@ export function buildProjectWorkbenchData(input: {
     decisionId: string | null;
     actions: ActionLineage[];
   };
+  governance: ProjectGovernanceSummary;
+  runtime: ProjectRuntimeSummary;
+  eval: EvalHarnessSummary;
+  ontology: ProjectOntologyReferences;
+  bridge: ProjectBridgeSummary;
 }): LocalSandboxProjectWorkbenchData {
   return {
     ...input.detail,
@@ -724,6 +815,11 @@ export function buildProjectWorkbenchData(input: {
     reviews: input.actionLineage.actions
       .map((item) => item.latestReview)
       .filter((review): review is ReviewSummary => Boolean(review)),
+    governance: input.governance,
+    runtime: input.runtime,
+    eval: input.eval,
+    ontology: input.ontology,
+    bridge: input.bridge,
   };
 }
 
@@ -867,6 +963,85 @@ function emptyActionLineage(projectId: string) {
   };
 }
 
+function emptyProjectGovernance(projectId: string): ProjectGovernanceSummary {
+  return {
+    projectId,
+    actionsSummary: {
+      total: 0,
+      pendingApprovals: 0,
+      inProgress: 0,
+      completed: 0,
+      latestAction: null,
+    },
+    reviewSummary: {
+      total: 0,
+      approved: 0,
+      latestReview: null,
+    },
+    assetSummary: {
+      total: 0,
+      candidates: 0,
+      published: 0,
+      latestAsset: null,
+    },
+    evaluationSummary: {
+      total: 0,
+      averageScore: 0,
+      byType: {},
+      latestEvaluation: null,
+    },
+    feedbackSummary: {
+      total: 0,
+      synced: 0,
+      latestFeedback: null,
+    },
+  };
+}
+
+function emptyProjectRuntime(projectId: string): ProjectRuntimeSummary {
+  return {
+    projectId,
+    counts: {
+      queued: 0,
+      running: 0,
+      awaiting_approval: 0,
+      awaiting_writeback: 0,
+      completed: 0,
+      failed: 0,
+      retryable: 0,
+      cancelled: 0,
+    },
+    latestWorkflow: null,
+    latestEvent: null,
+  };
+}
+
+function emptyEvalSummary(): EvalHarnessSummary {
+  return {
+    summary: {
+      total: 0,
+      averageScore: 0,
+      byStatus: {},
+    },
+    latestRun: null,
+    latestGateDecision: null,
+  };
+}
+
+function emptyOntologyReferences(projectId: string): ProjectOntologyReferences {
+  return {
+    projectId,
+    references: [],
+  };
+}
+
+function emptyBridgeSummary(projectId: string): ProjectBridgeSummary {
+  return {
+    projectId,
+    adapterSummary: [],
+  };
+}
+
 export function buildWorkbenchErrorResult(
   projectId: string,
   detail: LocalSandboxProjectDetailData,
@@ -887,6 +1062,11 @@ export function buildWorkbenchErrorResult(
       },
       actionLineage: partials.actionLineage ?? emptyActionLineage(projectId),
       reviews: partials.reviews ?? [],
+      governance: partials.governance ?? emptyProjectGovernance(projectId),
+      runtime: partials.runtime ?? emptyProjectRuntime(projectId),
+      eval: partials.eval ?? emptyEvalSummary(),
+      ontology: partials.ontology ?? emptyOntologyReferences(projectId),
+      bridge: partials.bridge ?? emptyBridgeSummary(projectId),
     },
     lastUpdatedAt: detail.project.updatedAt,
     issues,

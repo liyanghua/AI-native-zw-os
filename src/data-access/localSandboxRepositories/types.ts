@@ -1,23 +1,47 @@
 import type {
+  ActionCenterResponse,
   ActionLineage,
   ActionItem,
+  AssetLibraryResponse,
   AssetCandidate,
   DecisionContext,
   DecisionObject,
   EvidencePack,
+  ConnectorRegistryItem,
+  EvaluationSummary,
   ExecutionLog,
   ExecutionResult,
   ExecutionRun,
   KpiMetric,
+  ProjectGovernanceSummary,
+  ProjectBridgeSummary,
+  ProjectOntologyReferences,
   KnowledgeSearchResult,
   LifecycleStage,
+  OntologyLineage,
+  OntologyRegistryItem,
+  OntologyVersionRecord,
   Opportunity,
+  ProjectRuntimeSummary,
   ProjectStatus,
+  RetryRecord,
+  ReviewCenterResponse,
   RiskSignal,
   RoleDashboardResponse,
   RoleStory,
   RoleType,
   ReviewSummary,
+  SourceAdapter,
+  SyncRecord,
+  TaskRun,
+  WorkflowRun,
+  RuntimeEvent,
+  EvalCase,
+  EvalHarnessSummary,
+  EvalResult,
+  EvalRun,
+  EvalSuite,
+  GateDecision,
   WritebackRecord,
 } from "../../domain/types/model";
 
@@ -143,9 +167,17 @@ export interface LocalSandboxProjectWorkbenchData extends LocalSandboxProjectDet
     actions: ActionLineage[];
   };
   reviews: ReviewSummary[];
+  governance: ProjectGovernanceSummary;
+  runtime: ProjectRuntimeSummary;
+  eval: EvalHarnessSummary;
+  ontology: ProjectOntologyReferences;
+  bridge: ProjectBridgeSummary;
 }
 
 export type LocalSandboxRoleDashboardData = RoleDashboardResponse;
+export type LocalSandboxActionCenterData = ActionCenterResponse;
+export type LocalSandboxReviewCenterData = ReviewCenterResponse;
+export type LocalSandboxAssetLibraryData = AssetLibraryResponse;
 
 export interface LocalSandboxAgentTriggerData {
   action: ActionItem;
@@ -165,4 +197,68 @@ export interface LocalSandboxWritebackData {
   updatedKpis: KpiMetric[];
   writebackRecord: WritebackRecord;
   latestLog: ExecutionLog;
+}
+
+export interface LocalSandboxEvaluationData {
+  records: Array<{
+    evaluationId: string;
+    projectId: string;
+    evaluationType: string;
+    relatedObjectType: string;
+    relatedObjectId: string;
+    score: number;
+    notes: string;
+    createdAt: string;
+  }>;
+  summary: EvaluationSummary;
+}
+
+export interface LocalSandboxRuntimeListData {
+  workflows: WorkflowRun[];
+  filters: {
+    projectId: string | null;
+    actionId: string | null;
+    status: string | null;
+  };
+}
+
+export interface LocalSandboxRuntimeWorkflowDetailData {
+  workflow: WorkflowRun;
+  tasks: TaskRun[];
+  events: RuntimeEvent[];
+  retryRecords: RetryRecord[];
+}
+
+export interface LocalSandboxEvalCenterData {
+  cases: EvalCase[];
+  suites: EvalSuite[];
+  runs: EvalRun[];
+  latestGateDecision: GateDecision | null;
+}
+
+export interface LocalSandboxOntologyRegistryData {
+  items: OntologyRegistryItem[];
+  filters: {
+    itemType: string | null;
+    status: string | null;
+  };
+}
+
+export interface LocalSandboxOntologyRegistryDetailData {
+  item: OntologyRegistryItem;
+  latestPayload: Record<string, unknown>;
+  versions: OntologyVersionRecord[];
+  lineageReferences: OntologyLineage[];
+}
+
+export interface LocalSandboxBridgeDiagnosticsData {
+  adapters: SourceAdapter[];
+  connectors: ConnectorRegistryItem[];
+}
+
+export interface LocalSandboxBridgeSyncRecordsData {
+  records: SyncRecord[];
+  filters: {
+    adapterId: string | null;
+  };
 }

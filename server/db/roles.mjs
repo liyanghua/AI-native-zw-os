@@ -154,9 +154,54 @@ function listRoleAssets(db, role) {
     }));
 }
 
-function buildSummary(role, bundles, decisionQueue, assetSummary) {
+function countRuntimeAttention(db, projectId) {
+  const row = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM workflow_runs
+    WHERE project_id = ? AND status IN ('failed', 'retryable')
+  `).get(projectId);
+  return row?.total ?? 0;
+}
+
+function hasGateWarning(db, projectId) {
+  const row = db.prepare(`
+    SELECT gd.decision
+    FROM gate_decisions gd
+    JOIN eval_runs er ON er.run_id = gd.run_id
+    WHERE er.project_id = ?
+    ORDER BY er.started_at DESC
+    LIMIT 1
+  `).get(projectId);
+  return row?.decision === "warning" || row?.decision === "fail";
+}
+
+function countStaleSyncs(db) {
+  const rows = db.prepare(`
+    SELECT sa.adapter_id, sr.freshness_seconds, sr.status
+    FROM source_adapters sa
+    LEFT JOIN sync_records sr ON sr.sync_id = (
+      SELECT sync_id
+      FROM sync_records
+      WHERE adapter_id = sa.adapter_id
+      ORDER BY started_at DESC
+      LIMIT 1
+    )
+  `).all();
+
+  return rows.filter((row) => !row.status || row.status === "warning" || Number(row.freshness_seconds ?? 9999) > 300).length;
+}
+
+function buildSummary(db, role, bundles, decisionQueue, assetSummary) {
   const highRiskCount = bundles.filter((item) => item.detail.risks.some((risk) => risk.riskLevel === "high" || risk.riskLevel === "critical")).length;
   const highOpportunityCount = bundles.filter((item) => item.detail.opportunities.length > 0).length;
+  const pendingApprovalCount = decisionQueue.filter((item) => item.approvalStatus === "pending").length;
+  const inProgressCount = decisionQueue.filter((item) => item.executionStatus === "queued" || item.executionStatus === "in_progress").length;
+  const completedReviewCount = bundles.filter((item) => item.detail.latestReview).length;
+  const assetReadyCount = bundles.filter((item) => item.detail.assetCandidates.length > 0).length;
+  const closedLoopCount = bundles.filter((item) => item.detail.latestReview && item.detail.assetCandidates.length > 0).length;
+  const runtimeAttentionCount = bundles.filter((item) => countRuntimeAttention(db, item.detail.project.projectId) > 0).length;
+  const gateWarningCount = bundles.filter((item) => hasGateWarning(db, item.detail.project.projectId)).length;
+  const staleSyncCount = countStaleSyncs(db);
 
   if (role === "boss") {
     return {
@@ -164,9 +209,11 @@ function buildSummary(role, bundles, decisionQueue, assetSummary) {
       narrative: "围绕同一批项目对象，只显示需要继续投入、需要拍板和值得复制的事项。",
       metrics: [
         { label: "关键项目", value: String(bundles.length) },
-        { label: "待拍板", value: String(decisionQueue.filter((item) => item.requiresApproval).length) },
-        { label: "高风险项目", value: String(highRiskCount) },
-        { label: "可复制资产", value: String(assetSummary.length) },
+        { label: "待拍板", value: String(pendingApprovalCount) },
+        { label: "Gate 警告", value: String(gateWarningCount) },
+        { label: "运行异常", value: String(runtimeAttentionCount) },
+        { label: "Bridge 过期", value: String(staleSyncCount) },
+        { label: "闭环完成率", value: `${bundles.length === 0 ? 0 : Math.round((closedLoopCount / bundles.length) * 100)}%` },
       ],
     };
   }
@@ -177,9 +224,10 @@ function buildSummary(role, bundles, decisionQueue, assetSummary) {
       narrative: "聚焦推进卡点、经营异常、推荐动作和需要升级给老板的决策。",
       metrics: [
         { label: "推进项目", value: String(bundles.length) },
-        { label: "待协调动作", value: String(decisionQueue.length) },
-        { label: "高风险项目", value: String(highRiskCount) },
-        { label: "高机会项目", value: String(highOpportunityCount) },
+        { label: "待执行动作", value: String(decisionQueue.length) },
+        { label: "执行卡点", value: String(runtimeAttentionCount || inProgressCount) },
+        { label: "复盘已生成", value: String(completedReviewCount) },
+        { label: "Gate 警告", value: String(gateWarningCount) },
       ],
     };
   }
@@ -192,7 +240,8 @@ function buildSummary(role, bundles, decisionQueue, assetSummary) {
         { label: "关注项目", value: String(bundles.length) },
         { label: "待澄清定义", value: String(highRiskCount) },
         { label: "研发拍板项", value: String(decisionQueue.length) },
-        { label: "可复用经验", value: String(assetSummary.length) },
+        { label: "方法资产", value: String(assetReadyCount) },
+        { label: "Gate 警告", value: String(gateWarningCount) },
       ],
     };
   }
@@ -204,7 +253,9 @@ function buildSummary(role, bundles, decisionQueue, assetSummary) {
       { label: "待支持项目", value: String(bundles.length) },
       { label: "表达风险", value: String(highRiskCount) },
       { label: "创意动作", value: String(decisionQueue.length) },
+      { label: "运行异常", value: String(runtimeAttentionCount) },
       { label: "模板资产", value: String(assetSummary.length) },
+      { label: "Bridge 过期", value: String(staleSyncCount) },
     ],
   };
 }
@@ -296,7 +347,7 @@ export function getRoleDashboard(db, roleInput) {
   return {
     role,
     roleProfile,
-    summary: buildSummary(role, bundles, decisionQueue, assetSummary),
+    summary: buildSummary(db, role, bundles, decisionQueue, assetSummary),
     projectCards,
     decisionQueue,
     riskCards,

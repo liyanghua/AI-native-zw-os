@@ -20,6 +20,8 @@
    - 本地 SQLite schema / init / seed / query helper
    - Batch 2 新增 knowledge tables、chunk、retrieval log 与 brain compile helper
    - Batch 4 新增 approvals、execution runs、execution logs、writeback records、review / asset lineage helper
+   - Batch 5 新增 published assets、evaluation records、knowledge feedback records，以及 action/review/asset/evaluation governance compose helper
+   - Batch 6 新增 workflow / task / event / retry、eval harness、ontology registry/version、bridge adapter/sync 等内核表与 compose helper
 2. `server/api/*`
    - 本地 Node API，当前暴露：
      - `/api/projects`
@@ -38,11 +40,43 @@
      - `/api/execution/:runId/writeback`
      - `/api/review/generate`
      - `/api/assets/publish-candidate`
+     - `/api/actions`
+     - `/api/reviews`
+     - `/api/reviews/:id/promote-to-asset`
+     - `/api/assets`
+     - `/api/assets/:id/publish`
+     - `/api/assets/:id/feedback-to-knowledge`
+     - `/api/knowledge/feedback`
+     - `/api/evaluations`
+     - `/api/evaluations/run`
+     - `/api/projects/:id/governance`
+     - `/api/projects/:id/runtime`
+     - `/api/projects/:id/eval`
+     - `/api/projects/:id/ontology`
+     - `/api/projects/:id/bridge`
+     - `/api/runtime/workflows`
+     - `/api/runtime/workflows/:id`
+     - `/api/runtime/tasks/:id/retry`
+     - `/api/runtime/tasks/:id/cancel`
+     - `/api/eval/cases`
+     - `/api/eval/suites`
+     - `/api/eval/run`
+     - `/api/eval/runs`
+     - `/api/eval/runs/:id`
+     - `/api/ontology/registry`
+     - `/api/ontology/registry/:id`
+     - `/api/ontology/activate`
+     - `/api/ontology/deprecate`
+     - `/api/bridge/adapters`
+     - `/api/bridge/sync`
+     - `/api/bridge/sync-records`
 3. `src/data-access/localSandboxRepositories/*`
    - API DTO 到前端 typed repository 的映射层
    - Batch 2 新增 knowledge repository、brain repository、project workbench 聚合查询
    - Batch 3 新增 roles repository 与 role dashboard 查询
    - Batch 4 新增 execution repository，统一承接审批、触发、执行、回写、review、asset candidate
+   - Batch 5 新增 governance repository，统一承接 action center、review center、asset library、knowledge feedback、evaluation 与 project governance summary
+   - Batch 6 新增 runtime / eval / ontology / bridge repositories，统一把内核对象映射到 typed query result
 4. `src/data-access/PilotDataProvider.tsx`
    - 组合根；当前为混合模式：
      - `/lifecycle`、生命周期阶段页、`/project/:id` 走 API-backed repository
@@ -52,7 +86,7 @@
 
 这使得当前已具备一条可替换的本地主线链路：
 
-`SQLite -> Knowledge Retrieval / Brain Compile / Role Composition / Agent Trigger / Mock Execution / Writeback -> Local API -> repository/query -> 项目页与角色页`
+`SQLite -> Knowledge Retrieval / Brain Compile / Role Composition / Runtime Kernel / Agent Trigger / Mock Execution / Writeback / Governance / Feedback / Evaluation Harness / Ontology Registry / Bridge Adapter Layer -> Local API -> repository/query -> 项目页、角色页、治理页与内核页`
 
 其中：
 
@@ -62,6 +96,11 @@
 - `Agent Trigger` 在 server 层创建 `execution_run` 并推进 action 状态
 - `Mock Execution Connector` 按 `operations` / `product_rnd` / `visual` 返回不同执行结果
 - `Writeback`、`Review Generate`、`Asset Candidate Publish` 均真实落 SQLite
+- `Action Center`、`Review Governance`、`Asset Governance`、`Knowledge Feedback`、`Evaluation Loop` 均在 server 侧进行 compose 和状态推进
+- `Runtime Kernel` 采用 `workflow_run -> task_run -> runtime_event` 的 append-only 状态推进模型
+- `Evaluation Harness` 用 `eval_case -> eval_suite -> eval_run -> eval_result -> gate_decision` 支撑可复跑回归
+- `Ontology Governance` 用统一 registry + version record 管理 role profile、stage rule、action policy、review pattern、template、skill
+- `Bridge Adapter Layer` 统一承接 `local_mock`、`file_bridge`、`api_bridge`，并记录 sync diagnostics
 
 ---
 
@@ -143,7 +182,7 @@
 - 风险告警
 - 回滚
 
-当前 Local Pilot Sandbox 的 Batch 4 实现是：
+当前 Local Pilot Sandbox 的 Batch 6 实现是：
 
 - `POST /api/agent/trigger`
 - `POST /api/execution/mock-run`
@@ -158,6 +197,11 @@
 3. Mock connector 返回域内执行结果
 4. writeback 更新项目、KPI、日志与 lineage
 5. review / asset candidate 继续沉淀
+6. review 可升级为 asset candidate / published asset
+7. asset 可反馈到 knowledge layer
+8. decision / action / execution / review / asset 可进入 evaluation loop
+9. workflow / task / runtime event 可进入 runtime kernel timeline
+10. ontology item 与 bridge sync 诊断可进入治理与项目摘要
 
 前端要体现为：
 - Action Hub
@@ -199,6 +243,7 @@
 - 生命周期总览（`/lifecycle`）
 - 风险与审批（`/risk-approval`）
 - 复盘沉淀（`/review-assets`）
+- Review Center（`/review-assets`）
 
 ### B. Lifecycle Workspaces
 - 商机池、新品孵化、首发验证、增长优化、老品升级（各对应 `/opportunity-pool` … `/product-upgrade`）
@@ -207,6 +252,10 @@
 - 商品项目详情（`/project/:id`）：跨阶段、跨角色协作与走查的主承载面。
 - 动作中心（`/action-center`）
 - 经验资产库（`/asset-library`）
+- Asset Library（`/asset-library`）
+- 评测中心（`/eval-center`）
+- Ontology Registry（`/ontology-registry`）
+- Bridge 诊断（`/bridge-diagnostics`）
 
 ---
 
@@ -253,8 +302,9 @@
 
 - 非 mock connector 的真实外部系统接入
 - 更完整的异步 orchestration / workflow engine
-- review / asset candidate 的治理与发布主线
+- 更完整的 review / asset candidate 治理与发布主线
 - product_rnd_director / visual_director 的更完整领域深挖
+- 更真实的 knowledge feedback 与 evaluation 逻辑（如向量检索、实验验证）
 
 本阶段重点是：
 - 信息架构与路由与产品主线一致
@@ -263,4 +313,7 @@
 - 项目详情页能展示项目、证据、决策与角色叙事
 - 角色页通过 role-aware composition 复用同一个 project / decision / role story 数据链路
 - 项目详情页能跑通 mock 执行闭环并写回 SQLite
+- 项目详情页能展示 runtime timeline、latest eval gate、ontology references、bridge freshness
+- Action Center 已开始显示 workflow quick status
+- Eval / Ontology / Bridge 已拥有独立入口页，但仍是 Batch 6 最小实现
 - 与 `DATA_MODEL.md` 的概念边界一致，并为后续批次留出可扩展接口

@@ -1,6 +1,12 @@
 import type {
+  ApiActionCenterResponseDto,
   ApiAgentTriggerRequestDto,
   ApiAgentTriggerResponseDto,
+  ApiAssetLibraryResponseDto,
+  ApiBridgeAdaptersResponseDto,
+  ApiBridgeSyncRecordsResponseDto,
+  ApiBridgeSyncRequestDto,
+  ApiBridgeSyncResponseDto,
   ApiApproveActionRequestDto,
   ApiApproveActionResponseDto,
   ApiCompileContextRequestDto,
@@ -9,22 +15,50 @@ import type {
   ApiCompileDecisionResponseDto,
   ApiCompileRoleStoryRequestDto,
   ApiCompileRoleStoryResponseDto,
+  ApiEvalCasesResponseDto,
+  ApiEvalRunResponseDto,
+  ApiEvalRunsResponseDto,
+  ApiEvalSuitesResponseDto,
+  ApiEvaluationsResponseDto,
   ApiErrorPayload,
+  ApiFeedbackToKnowledgeRequestDto,
+  ApiFeedbackToKnowledgeResponseDto,
   ApiGenerateReviewRequestDto,
   ApiGenerateReviewResponseDto,
   ApiKnowledgeSearchRequestDto,
   ApiKnowledgeSearchResultDto,
   ApiMockRunRequestDto,
   ApiMockRunResponseDto,
+  ApiOntologyRegistryDetailResponseDto,
+  ApiOntologyRegistryResponseDto,
+  ApiOntologyStatusMutationRequestDto,
+  ApiOntologyStatusMutationResponseDto,
+  ApiProjectGovernanceResponseDto,
   ApiProjectLineageResponseDto,
   ApiProjectKnowledgeResponseDto,
+  ApiProjectBridgeSummaryDto,
   ApiProjectDetailDto,
+  ApiProjectEvalSummaryDto,
   ApiProjectListResponseDto,
+  ApiProjectOntologyReferencesDto,
+  ApiProjectRuntimeSummaryDto,
+  ApiPromoteReviewToAssetRequestDto,
+  ApiPromoteReviewToAssetResponseDto,
+  ApiPublishAssetRequestDto,
+  ApiPublishAssetResponseDto,
   ApiPublishAssetCandidateRequestDto,
   ApiPublishAssetCandidateResponseDto,
   ApiRejectActionRequestDto,
   ApiRejectActionResponseDto,
+  ApiReviewCenterResponseDto,
   ApiRoleDashboardResponseDto,
+  ApiRunEvalRequestDto,
+  ApiRuntimeCancelTaskResponseDto,
+  ApiRuntimeRetryTaskResponseDto,
+  ApiRuntimeTaskOperatorRequestDto,
+  ApiRuntimeWorkflowDetailResponseDto,
+  ApiRuntimeWorkflowsResponseDto,
+  ApiRunEvaluationsRequestDto,
   ApiWritebackResponseDto,
 } from "../domain/types/api";
 import type { LifecycleStage } from "../domain/types/model";
@@ -137,6 +171,41 @@ export function createApiClient({ baseUrl = "/api" }: { baseUrl?: string } = {})
       ensureResponseKeys(payload, ["projectId", "actions"]);
       return payload;
     },
+    async getProjectGovernance(projectId: string) {
+      const payload = await request<ApiProjectGovernanceResponseDto>(
+        `/projects/${encodeURIComponent(projectId)}/governance`,
+      );
+      ensureResponseKeys(payload, ["projectId", "actionsSummary", "reviewSummary", "assetSummary"]);
+      return payload;
+    },
+    async getProjectRuntimeSummary(projectId: string) {
+      const payload = await request<ApiProjectRuntimeSummaryDto>(
+        `/projects/${encodeURIComponent(projectId)}/runtime`,
+      );
+      ensureResponseKeys(payload, ["projectId", "counts", "latestWorkflow"]);
+      return payload;
+    },
+    async getProjectEvalSummary(projectId: string) {
+      const payload = await request<ApiProjectEvalSummaryDto>(
+        `/projects/${encodeURIComponent(projectId)}/eval`,
+      );
+      ensureResponseKeys(payload, ["summary", "latestRun", "latestGateDecision"]);
+      return payload;
+    },
+    async getProjectOntologyReferences(projectId: string) {
+      const payload = await request<ApiProjectOntologyReferencesDto>(
+        `/projects/${encodeURIComponent(projectId)}/ontology`,
+      );
+      ensureResponseKeys(payload, ["projectId", "references"]);
+      return payload;
+    },
+    async getProjectBridgeSummary(projectId: string) {
+      const payload = await request<ApiProjectBridgeSummaryDto>(
+        `/projects/${encodeURIComponent(projectId)}/bridge`,
+      );
+      ensureResponseKeys(payload, ["projectId", "adapterSummary"]);
+      return payload;
+    },
     async searchKnowledge(input: ApiKnowledgeSearchRequestDto) {
       const payload = await request<ApiKnowledgeSearchResultDto>("/knowledge/search", {
         method: "POST",
@@ -153,6 +222,17 @@ export function createApiClient({ baseUrl = "/api" }: { baseUrl?: string } = {})
         `/projects/${encodeURIComponent(projectId)}/knowledge`,
       );
       ensureResponseKeys(payload, ["matchedAssets", "matchedChunks", "resultCount"]);
+      return payload;
+    },
+    async feedbackToKnowledge(input: ApiFeedbackToKnowledgeRequestDto) {
+      const payload = await request<ApiFeedbackToKnowledgeResponseDto>("/knowledge/feedback", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["feedback"]);
       return payload;
     },
     async compileDecisionContext(input: ApiCompileContextRequestDto) {
@@ -264,6 +344,310 @@ export function createApiClient({ baseUrl = "/api" }: { baseUrl?: string } = {})
         body: JSON.stringify(input),
       });
       ensureResponseKeys(payload, ["assetCandidate"]);
+      return payload;
+    },
+    async getActionCenter(input: {
+      role?: string;
+      actionDomain?: string;
+      approvalStatus?: string;
+      executionStatus?: string;
+      projectId?: string;
+    } = {}) {
+      const searchParams = new URLSearchParams();
+      if (input.role) {
+        searchParams.set("role", input.role);
+      }
+      if (input.actionDomain) {
+        searchParams.set("actionDomain", input.actionDomain);
+      }
+      if (input.approvalStatus) {
+        searchParams.set("approvalStatus", input.approvalStatus);
+      }
+      if (input.executionStatus) {
+        searchParams.set("executionStatus", input.executionStatus);
+      }
+      if (input.projectId) {
+        searchParams.set("projectId", input.projectId);
+      }
+      const query = searchParams.toString();
+      const payload = await request<ApiActionCenterResponseDto>(`/actions${query ? `?${query}` : ""}`);
+      ensureResponseKeys(payload, ["items", "summary", "filters"]);
+      return payload;
+    },
+    async getReviewCenter(input: {
+      projectId?: string;
+      reviewStatus?: string;
+      reviewType?: string;
+      sourceActionId?: string;
+    } = {}) {
+      const searchParams = new URLSearchParams();
+      if (input.projectId) {
+        searchParams.set("projectId", input.projectId);
+      }
+      if (input.reviewStatus) {
+        searchParams.set("reviewStatus", input.reviewStatus);
+      }
+      if (input.reviewType) {
+        searchParams.set("reviewType", input.reviewType);
+      }
+      if (input.sourceActionId) {
+        searchParams.set("sourceActionId", input.sourceActionId);
+      }
+      const query = searchParams.toString();
+      const payload = await request<ApiReviewCenterResponseDto>(`/reviews${query ? `?${query}` : ""}`);
+      ensureResponseKeys(payload, ["items", "summary", "filters"]);
+      return payload;
+    },
+    async promoteReviewToAsset(reviewId: string, input: ApiPromoteReviewToAssetRequestDto) {
+      const payload = await request<ApiPromoteReviewToAssetResponseDto>(
+        `/reviews/${encodeURIComponent(reviewId)}/promote-to-asset`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(input),
+        },
+      );
+      ensureResponseKeys(payload, ["review", "assetCandidate"]);
+      return payload;
+    },
+    async getAssetLibrary(input: {
+      projectId?: string;
+      publishStatus?: string;
+      assetType?: string;
+    } = {}) {
+      const searchParams = new URLSearchParams();
+      if (input.projectId) {
+        searchParams.set("projectId", input.projectId);
+      }
+      if (input.publishStatus) {
+        searchParams.set("publishStatus", input.publishStatus);
+      }
+      if (input.assetType) {
+        searchParams.set("assetType", input.assetType);
+      }
+      const query = searchParams.toString();
+      const payload = await request<ApiAssetLibraryResponseDto>(`/assets${query ? `?${query}` : ""}`);
+      ensureResponseKeys(payload, ["items", "summary", "filters"]);
+      return payload;
+    },
+    async publishAsset(assetId: string, input: ApiPublishAssetRequestDto) {
+      const payload = await request<ApiPublishAssetResponseDto>(`/assets/${encodeURIComponent(assetId)}/publish`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["publishedAsset"]);
+      return payload;
+    },
+    async feedbackAssetToKnowledge(assetId: string, input: ApiFeedbackToKnowledgeRequestDto) {
+      const payload = await request<ApiFeedbackToKnowledgeResponseDto>(
+        `/assets/${encodeURIComponent(assetId)}/feedback-to-knowledge`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(input),
+        },
+      );
+      ensureResponseKeys(payload, ["feedback"]);
+      return payload;
+    },
+    async getEvaluations(input: { projectId?: string; evaluationType?: string } = {}) {
+      const searchParams = new URLSearchParams();
+      if (input.projectId) {
+        searchParams.set("projectId", input.projectId);
+      }
+      if (input.evaluationType) {
+        searchParams.set("evaluationType", input.evaluationType);
+      }
+      const query = searchParams.toString();
+      const payload = await request<ApiEvaluationsResponseDto>(`/evaluations${query ? `?${query}` : ""}`);
+      ensureResponseKeys(payload, ["records", "summary"]);
+      return payload;
+    },
+    async runEvaluations(input: ApiRunEvaluationsRequestDto) {
+      const payload = await request<ApiEvaluationsResponseDto>("/evaluations/run", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["records", "summary"]);
+      return payload;
+    },
+    async getRuntimeWorkflows(input: {
+      projectId?: string;
+      actionId?: string;
+      status?: string;
+    } = {}) {
+      const searchParams = new URLSearchParams();
+      if (input.projectId) {
+        searchParams.set("projectId", input.projectId);
+      }
+      if (input.actionId) {
+        searchParams.set("actionId", input.actionId);
+      }
+      if (input.status) {
+        searchParams.set("status", input.status);
+      }
+      const query = searchParams.toString();
+      const payload = await request<ApiRuntimeWorkflowsResponseDto>(`/runtime/workflows${query ? `?${query}` : ""}`);
+      ensureResponseKeys(payload, ["workflows", "filters"]);
+      return payload;
+    },
+    async getRuntimeWorkflow(workflowId: string) {
+      const payload = await request<ApiRuntimeWorkflowDetailResponseDto>(
+        `/runtime/workflows/${encodeURIComponent(workflowId)}`,
+      );
+      ensureResponseKeys(payload, ["workflow", "tasks", "events", "retryRecords"]);
+      return payload;
+    },
+    async retryRuntimeTask(taskId: string, input: ApiRuntimeTaskOperatorRequestDto) {
+      const payload = await request<ApiRuntimeRetryTaskResponseDto>(
+        `/runtime/tasks/${encodeURIComponent(taskId)}/retry`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(input),
+        },
+      );
+      ensureResponseKeys(payload, ["workflow", "originalTask", "newTask", "retryRecord", "latestEvent"]);
+      return payload;
+    },
+    async cancelRuntimeTask(taskId: string, input: ApiRuntimeTaskOperatorRequestDto) {
+      const payload = await request<ApiRuntimeCancelTaskResponseDto>(
+        `/runtime/tasks/${encodeURIComponent(taskId)}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(input),
+        },
+      );
+      ensureResponseKeys(payload, ["workflow", "task", "latestEvent"]);
+      return payload;
+    },
+    async getEvalCases() {
+      const payload = await request<ApiEvalCasesResponseDto>("/eval/cases");
+      ensureResponseKeys(payload, ["cases"]);
+      return payload;
+    },
+    async getEvalSuites() {
+      const payload = await request<ApiEvalSuitesResponseDto>("/eval/suites");
+      ensureResponseKeys(payload, ["suites"]);
+      return payload;
+    },
+    async runEvalSuite(input: ApiRunEvalRequestDto) {
+      const payload = await request<ApiEvalRunResponseDto>("/eval/run", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["run", "results", "gateDecision"]);
+      return payload;
+    },
+    async getEvalRuns(input: { projectId?: string; suiteId?: string; status?: string } = {}) {
+      const searchParams = new URLSearchParams();
+      if (input.projectId) {
+        searchParams.set("projectId", input.projectId);
+      }
+      if (input.suiteId) {
+        searchParams.set("suiteId", input.suiteId);
+      }
+      if (input.status) {
+        searchParams.set("status", input.status);
+      }
+      const query = searchParams.toString();
+      const payload = await request<ApiEvalRunsResponseDto>(`/eval/runs${query ? `?${query}` : ""}`);
+      ensureResponseKeys(payload, ["runs"]);
+      return payload;
+    },
+    async getEvalRun(runId: string) {
+      const payload = await request<ApiEvalRunResponseDto>(`/eval/runs/${encodeURIComponent(runId)}`);
+      ensureResponseKeys(payload, ["run", "results", "gateDecision"]);
+      return payload;
+    },
+    async getOntologyRegistry(input: { itemType?: string; status?: string } = {}) {
+      const searchParams = new URLSearchParams();
+      if (input.itemType) {
+        searchParams.set("itemType", input.itemType);
+      }
+      if (input.status) {
+        searchParams.set("status", input.status);
+      }
+      const query = searchParams.toString();
+      const payload = await request<ApiOntologyRegistryResponseDto>(
+        `/ontology/registry${query ? `?${query}` : ""}`,
+      );
+      ensureResponseKeys(payload, ["items", "filters"]);
+      return payload;
+    },
+    async getOntologyRegistryItem(registryId: string) {
+      const payload = await request<ApiOntologyRegistryDetailResponseDto>(
+        `/ontology/registry/${encodeURIComponent(registryId)}`,
+      );
+      ensureResponseKeys(payload, ["item", "latestPayload", "versions", "lineageReferences"]);
+      return payload;
+    },
+    async activateOntologyItem(input: ApiOntologyStatusMutationRequestDto) {
+      const payload = await request<ApiOntologyStatusMutationResponseDto>("/ontology/activate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["item", "latestPayload", "versions", "lineageReferences"]);
+      return payload;
+    },
+    async deprecateOntologyItem(input: ApiOntologyStatusMutationRequestDto) {
+      const payload = await request<ApiOntologyStatusMutationResponseDto>("/ontology/deprecate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["item", "latestPayload", "versions", "lineageReferences"]);
+      return payload;
+    },
+    async getBridgeAdapters() {
+      const payload = await request<ApiBridgeAdaptersResponseDto>("/bridge/adapters");
+      ensureResponseKeys(payload, ["adapters", "connectors"]);
+      return payload;
+    },
+    async runBridgeSync(input: ApiBridgeSyncRequestDto) {
+      const payload = await request<ApiBridgeSyncResponseDto>("/bridge/sync", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["adapter", "syncRecord"]);
+      return payload;
+    },
+    async getBridgeSyncRecords(input: { adapterId?: string } = {}) {
+      const searchParams = new URLSearchParams();
+      if (input.adapterId) {
+        searchParams.set("adapterId", input.adapterId);
+      }
+      const query = searchParams.toString();
+      const payload = await request<ApiBridgeSyncRecordsResponseDto>(
+        `/bridge/sync-records${query ? `?${query}` : ""}`,
+      );
+      ensureResponseKeys(payload, ["records", "filters"]);
       return payload;
     },
   };

@@ -102,7 +102,7 @@ export function RoleDashboardScreen({ role }: { role: RoleType }) {
         </div>
       </section>
 
-      <section className="grid grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 gap-4 xl:grid-cols-5">
         {dashboard.summary.metrics.map((metric) => (
           <MetricCard key={metric.label} label={metric.label} value={metric.value} />
         ))}

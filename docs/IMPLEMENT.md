@@ -131,6 +131,18 @@
 - 组件：`src/app/components/assets/AssetLibrary.tsx`
 - 路由：`/asset-library`
 
+### 5.16 评测中心
+- 组件：`src/app/components/eval/EvalCenter.tsx`
+- 路由：`/eval-center`
+
+### 5.17 Ontology Registry
+- 组件：`src/app/components/ontology/OntologyRegistry.tsx`
+- 路由：`/ontology-registry`
+
+### 5.18 Bridge 诊断
+- 组件：`src/app/components/bridge/BridgeDiagnostics.tsx`
+- 路由：`/bridge-diagnostics`
+
 ---
 
 ## 6. Implementation Sequence Rules
@@ -170,6 +182,23 @@ When extending beyond the current prototype:
 
 ## 8. Progress Notes
 
+### 2026-04-03：Batch 6 运行内核、评测、Ontology 与 Bridge foundation 落地
+
+- **Runtime Kernel**：新增 `workflow_runs`、`task_runs`、`runtime_events`、`retry_records`，并把审批、trigger、mock-run、writeback、review、publish 的状态推进补到 `workflow -> task -> runtime event` 轨迹上。
+- **Runtime API**：新增 `GET /api/runtime/workflows`、`GET /api/runtime/workflows/:id`、`POST /api/runtime/tasks/:id/retry`、`POST /api/runtime/tasks/:id/cancel`，项目摘要增加 `GET /api/projects/:id/runtime`。
+- **Evaluation Harness**：新增 `eval_cases`、`eval_suites`、`eval_runs`、`eval_results`、`gate_decisions`，并落地 `GET /api/eval/cases`、`GET /api/eval/suites`、`POST /api/eval/run`、`GET /api/eval/runs`、`GET /api/eval/runs/:id`。
+- **Ontology Governance**：新增 `ontology_registry`、`ontology_versions`、`policy_objects`、`template_objects`、`skill_objects`，并落地 `GET /api/ontology/registry`、`GET /api/ontology/registry/:id`、`POST /api/ontology/activate`、`POST /api/ontology/deprecate`。
+- **Bridge Adapter Layer**：新增 `source_adapters`、`bridge_configs`、`sync_records`、`connector_registry`，并落地 `GET /api/bridge/adapters`、`POST /api/bridge/sync`、`GET /api/bridge/sync-records`；当前 `file_bridge` 使用 repo 内 fixture 做最小 upsert 演示。
+- **repository 收口**：`localSandboxRepositories` 新增 `runtimeRepository`、`evalRepository`、`ontologyRepository`、`bridgeRepository`，`projects.getWorkbench(projectId)` 现已聚合 runtime / eval / ontology / bridge 摘要。
+- **页面接入**：
+  - `/project/:id` 新增 runtime timeline、latest gate、ontology refs、bridge freshness
+  - `/action-center` 新增 workflow status / quick status
+  - 新增 `/eval-center`
+  - 新增 `/ontology-registry`
+  - 新增 `/bridge-diagnostics`
+- **角色页联动**：角色首页 summary metrics 已开始反映 runtime failed/retryable、gate warnings、bridge stale sync 等 Batch 6 风险信号。
+- **未纳入 Batch 6**：分布式 queue / worker、真实 API bridge、完整 ontology 内容平台、复杂异步 runtime 编排仍留到后续批次。
+
 ### 2026-04-03：Batch 4 mock 执行闭环落地
 
 - **SQLite 扩展**：新增 `approvals`、`execution_runs`、`execution_logs`、`writeback_records`，并扩展 `actions`、`reviews`、`asset_candidates` 的闭环字段。
@@ -180,6 +209,21 @@ When extending beyond the current prototype:
 - **项目详情页升级**：`/project/:id` 新增 Action Execution、Execution History、Review、Asset Candidate 四个区块，可逐步触发批准 / 驳回 / trigger / mock-run / writeback / review / publish。
 - **角色页联动**：`boss` 与 `operations_director` dashboard 已开始反映 pending approvals、execution status、review generated、asset candidate 等闭环状态。
 - **未纳入 Batch 4**：真实外部执行 connector、复杂异步 orchestration、动作中心正式迁移、完整资产治理仍留到后续批次。
+
+### 2026-04-03：Batch 5 治理、沉淀、回流与评测闭环落地
+
+- **SQLite 扩展**：新增 `published_assets`、`evaluation_records`、`knowledge_feedback_records`，并扩展 `reviews`、`asset_candidates` 的治理字段。
+- **治理 API**：新增 `GET /api/actions`、`GET /api/reviews`、`POST /api/reviews/:id/promote-to-asset`、`GET /api/assets`、`POST /api/assets/:id/publish`、`POST /api/assets/:id/feedback-to-knowledge`、`POST /api/knowledge/feedback`、`GET /api/evaluations`、`POST /api/evaluations/run`、`GET /api/projects/:id/governance`。
+- **server compose**：新增 action center、review center、asset library、knowledge feedback、evaluation、project governance summary 的 server 侧治理编排。
+- **知识回流**：当前 feedback 策略为“立即物化为新的 `knowledge_assets` + `knowledge_chunks`”，并写 `knowledge_feedback_records`；后续 `POST /api/knowledge/search` 可检索到新增来源。
+- **repository 收口**：`localSandboxRepositories` 新增 `governanceRepository`，统一承接 actions / reviews / assets / evaluations / feedback / project governance。
+- **页面迁移**：
+  - `/action-center` 已正式切到 `GET /api/actions`
+  - `/review-assets` 已正式切到 `GET /api/reviews`
+  - `/asset-library` 已正式切到 `GET /api/assets`
+  - `/project/:id` 已新增治理摘要卡并可跳转治理页
+- **角色联动**：角色首页 summary metrics 已开始展示治理层信号，例如待拍板动作、review 生成数、方法资产、知识回流候选。
+- **未纳入 Batch 5**：真实向量库、真实 A/B / 实验验证、真实多租户治理、复杂资产编辑器 / CMS、生产级 workflow engine 仍留在后续批次。
 
 ### 2026-04-02：Batch 2 本地知识检索与决策编译主线落地
 

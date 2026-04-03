@@ -178,3 +178,59 @@ Reason:
 如果执行成功、review 生成、asset candidate 发布只停留在 UI 状态，就无法形成真正可追溯的本地闭环，也无法让角色页和项目详情页共享同一套事实来源。Batch 4 必须把 writeback、review、asset candidate 真实写回 SQLite。
 Status:
 accepted
+
+---
+
+## D-023 Upgrade from project execution loop to governance loop
+Reason:
+如果系统只停留在单项目执行闭环，动作、review、asset 仍然会散落在项目页内部，无法形成跨项目、跨角色的经营治理视图。Batch 5 必须补 action center、review center、asset library，把执行闭环升级为治理闭环。
+Status:
+accepted
+
+---
+
+## D-024 Review and asset must feed back into knowledge
+Reason:
+review 和 asset 只有在能够反向成为后续项目可检索的方法证据时，才真正构成组织学习闭环。因此 Batch 5 规定 knowledge feedback 必须真实生成新的 knowledge asset / chunk，而不是只改 UI 状态。
+Status:
+accepted
+
+---
+
+## D-025 Evaluation must persist to SQLite
+Reason:
+如果 decision / action / execution / review / asset 的评测结果只在前端临时算分，就无法审计历史，也无法为老板和总监提供可追溯的闭环质量信号。Batch 5 必须把 evaluation records 真实写入 SQLite。
+Status:
+accepted
+
+---
+
+## D-026 Runtime Kernel must sit above execution runs
+Reason:
+如果系统只有 `execution_run` 而没有 `workflow -> task -> event` 的更上层运行模型，就无法清晰表达等待审批、等待写回、失败重试、取消等状态，也无法在项目页或动作中心展示可审计 timeline。Batch 6 必须补 runtime kernel。
+Status:
+accepted
+
+---
+
+## D-027 Eval harness needs dedicated cases, suites, runs, and gates
+Reason:
+Batch 5 的 `evaluation_records` 更适合治理摘要和轻量评分历史，无法承担可复跑回归、suite 级 summary、gate decision 的职责。Batch 6 必须新增独立 eval harness 表与 API，而不是继续把所有评测塞进一张表。
+Status:
+accepted
+
+---
+
+## D-028 Ontology governance should use a unified registry
+Reason:
+role profile、stage rule、action policy、review pattern、template、skill 如果继续散落在 seed、代码常量和单张表里，就很难做版本、状态、owner 和 lineage 管理。Batch 6 必须引入统一 ontology registry 和 version record。
+Status:
+accepted
+
+---
+
+## D-029 Bridge adapters must stay in a dedicated server bridge layer
+Reason:
+未来真实系统接入不可直接写死在页面、runtime compile 或 repository 中，否则 bridge mode、mapping errors、freshness 和 sync diagnostics 都会失控。Batch 6 必须把 local mock、file bridge、api bridge 收敛到统一 bridge adapter layer。
+Status:
+accepted

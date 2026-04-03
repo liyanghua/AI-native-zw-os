@@ -1,6 +1,6 @@
 # Plan
 
-当前实施计划按 **Batch 1 ~ Batch 5** 推进，而不是一次性全站替换。
+当前实施计划按 **Batch 1 ~ Batch 6** 推进，而不是一次性全站替换。
 
 ## Batch 1：Local Pilot Sandbox
 
@@ -111,17 +111,93 @@
 - `/product-rnd-director`（skeleton）
 - `/visual-director`（skeleton）
 
-## Batch 5：协同闭环验证
+## Batch 5：治理、沉淀、回流与评测闭环
 
 目标：
 
-- 人 × 大脑 × Agent × 执行端协同跑通
-- 业务主线闭环、角色闭环、协同闭环都能用同一 pilot 项目演示
-- 增加更完整的试点指标和验收走查
+- 把项目级执行闭环升级为治理闭环
+- 建立 action center / review center / asset library
+- 建立 knowledge feedback loop 与 evaluation loop
+- 让角色页能看到治理层状态摘要
 
-当前距离 Batch 5 仍差：
+已完成：
 
-- mock connector 替换为更真实的执行端集成
-- 更完整的动作中心主交互迁移
-- review / asset candidate 的治理与发布机制
-- product_rnd_director / visual_director 更完整的执行与知识沉淀深挖
+- `GET /api/actions`
+- `GET /api/reviews`
+- `POST /api/reviews/:id/promote-to-asset`
+- `GET /api/assets`
+- `POST /api/assets/:id/publish`
+- `POST /api/assets/:id/feedback-to-knowledge`
+- `POST /api/knowledge/feedback`
+- `GET /api/evaluations`
+- `POST /api/evaluations/run`
+- `GET /api/projects/:id/governance`
+- `/action-center` 正式切到 API-backed governance repository
+- `/review-assets` 正式切到 API-backed review center
+- `/asset-library` 正式切到 API-backed asset library
+- `/project/:id` 新增治理摘要，并可跳转治理页
+- review -> asset -> publish -> feedback to knowledge -> evaluation run 的本地沙箱链路可演示
+
+当前三闭环 + 治理闭环成立程度：
+
+- 经营主线闭环：已可在本地 SQLite / API 沙箱中跑通
+- 角色闭环：已具备同源 dashboard + governance summary 入口
+- 人 × 大脑 × Agent × 执行端协同闭环：已具备 mock execution 验证链路
+- 治理闭环：已具备治理对象、知识回流、规则评测与摘要面板
+
+后续若继续演进，优先补：
+
+- 非 mock connector 的真实执行端替换
+- 更完整的动作中心主交互与审批治理
+- 更复杂的资产治理与外部知识库发布
+- 更真实的 evaluation / verification 逻辑
+- 多项目协同执行与生产化调度
+
+## Batch 6：运行内核、评测、Ontology 治理与桥接层
+
+目标：
+
+- 把 execution 升级为 `workflow -> task -> event` 的 runtime kernel
+- 把零散 evaluation 升级为可复跑的 harness
+- 把 role profile / stage rule / action policy / review pattern / template / skill 纳入 ontology registry
+- 为未来真实系统接入建立统一 bridge adapter layer
+
+已完成：
+
+- `GET /api/projects/:id/runtime`
+- `GET /api/projects/:id/eval`
+- `GET /api/projects/:id/ontology`
+- `GET /api/projects/:id/bridge`
+- `GET /api/runtime/workflows`
+- `GET /api/runtime/workflows/:id`
+- `POST /api/runtime/tasks/:id/retry`
+- `POST /api/runtime/tasks/:id/cancel`
+- `GET /api/eval/cases`
+- `GET /api/eval/suites`
+- `POST /api/eval/run`
+- `GET /api/eval/runs`
+- `GET /api/eval/runs/:id`
+- `GET /api/ontology/registry`
+- `GET /api/ontology/registry/:id`
+- `POST /api/ontology/activate`
+- `POST /api/ontology/deprecate`
+- `GET /api/bridge/adapters`
+- `POST /api/bridge/sync`
+- `GET /api/bridge/sync-records`
+- `/project/:id` 新增 runtime timeline、latest eval gate、ontology references、bridge freshness
+- `/action-center` 新增 workflow / runtime status 摘要
+- 新增 `/eval-center`、`/ontology-registry`、`/bridge-diagnostics`
+
+当前系统的成立程度：
+
+- 经营主线闭环：本地沙箱中可持续运行，并具备 runtime timeline 与 bridge freshness 诊断
+- 角色闭环：角色首页已能看到 runtime/eval/bridge 风险摘要
+- 人 × 大脑 × Agent × 执行闭环：已具备 workflow/task/event 级状态追踪、retry 与 cancel 的最小能力
+- 治理闭环：已扩展为 eval harness、ontology governance、bridge diagnostics
+
+若继续往生产化演进，优先补：
+
+- worker / queue 驱动的异步 runtime
+- 更真实的 gate / eval case 编排与基准集
+- 更完整的 ontology 内容平台与变更审计
+- 非 mock connector 与真实 file/api bridge 映射治理

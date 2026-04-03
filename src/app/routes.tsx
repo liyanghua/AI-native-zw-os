@@ -12,10 +12,13 @@ import { LaunchVerification } from "./components/lifecycle/LaunchVerification";
 import { GrowthOptimization } from "./components/lifecycle/GrowthOptimization";
 import { ProductUpgrade } from "./components/lifecycle/ProductUpgrade";
 import { ActionCenter } from "./components/actions/ActionCenter";
+import { BridgeDiagnostics } from "./components/bridge/BridgeDiagnostics";
 import { RiskAndApproval } from "./components/risk/RiskAndApproval";
 import { ReviewAndAssets } from "./components/review/ReviewAndAssets";
 import { AssetLibrary } from "./components/assets/AssetLibrary";
+import { EvalCenter } from "./components/eval/EvalCenter";
 import { NotFound } from "./components/NotFound";
+import { OntologyRegistry } from "./components/ontology/OntologyRegistry";
 
 function LegacyProductDirectorRedirect() {
   return <Navigate to="/product-rnd-director" replace />;
@@ -43,6 +46,9 @@ export const router = createBrowserRouter([
       { path: "risk-approval", Component: RiskAndApproval },
       { path: "review-assets", Component: ReviewAndAssets },
       { path: "asset-library", Component: AssetLibrary },
+      { path: "eval-center", Component: EvalCenter },
+      { path: "ontology-registry", Component: OntologyRegistry },
+      { path: "bridge-diagnostics", Component: BridgeDiagnostics },
       { path: "*", Component: NotFound },
     ],
   },

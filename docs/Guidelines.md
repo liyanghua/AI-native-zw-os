@@ -19,6 +19,15 @@
 - 执行结果必须通过 API 写回数据库，不能只在前端本地状态中“看起来成功”。
 - review 与 asset candidate 必须带 source lineage，至少能回溯到 action / run / review。
 - action domain 必须显式区分 `operations` / `product_rnd` / `visual`，不能把三类动作压平成一种模板。
+- review 与 asset 不只是展示对象，必须具备治理状态并能进入 center / library 页面统一管理。
+- knowledge feedback 必须真实写回数据库，并生成可被后续检索命中的 knowledge asset / chunk。
+- evaluation 结果必须持久化，不能只在 UI 层做即时评分展示。
+- `/action-center`、`/review-assets`、`/asset-library` 页面不得再依赖页面级 mock，必须消费治理 API / repository 结果。
+- runtime workflow / task / event 必须真实持久化，页面不得在前端伪造 timeline。
+- task retry / cancel 必须通过 runtime API 推进，不得直接在页面本地修改状态。
+- eval harness 的 case / suite / run / result / gate decision 必须真实落库，不能只用页面状态模拟。
+- ontology registry 的 activate / deprecate 必须通过 API 执行，并保留版本与状态语义。
+- bridge 逻辑必须停留在 server bridge layer；页面只能消费 adapter / sync diagnostics 结果。
 - 代码实现与 `docs/` 文档必须同步更新，不能只改代码不改文档。
 
 ## 字体与排版（Typography）

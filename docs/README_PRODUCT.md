@@ -9,9 +9,9 @@
 它不是传统 BI 看板，不是普通项目管理工具，也不是单个聊天助手前台。
 它的目标是把企业围绕商品经营的主线——从商机发现、开新品、首发验证、增长优化、老品升级，到复盘沉淀——统一到一个系统里。
 
-### 当前实现阶段：Local Pilot Sandbox / Batch 4
+### 当前实现阶段：Local Pilot Sandbox / Batch 6
 
-当前仓库已经从“页面级 mock 原型”升级为**本地单机闭环沙箱**的第四批实现：
+当前仓库已经从“页面级 mock 原型”升级为**本地单机闭环沙箱**的第六批实现：
 
 - 本地 SQLite 数据底座已落地，数据库文件默认位于 `data/pilot-sandbox.sqlite`
 - 已实现本地 Node API：
@@ -31,6 +31,36 @@
   - `POST /api/execution/:runId/writeback`
   - `POST /api/review/generate`
   - `POST /api/assets/publish-candidate`
+  - `GET /api/actions`
+  - `GET /api/reviews`
+  - `POST /api/reviews/:id/promote-to-asset`
+  - `GET /api/assets`
+  - `POST /api/assets/:id/publish`
+  - `POST /api/assets/:id/feedback-to-knowledge`
+  - `POST /api/knowledge/feedback`
+  - `GET /api/evaluations`
+  - `POST /api/evaluations/run`
+  - `GET /api/projects/:id/governance`
+  - `GET /api/projects/:id/runtime`
+  - `GET /api/projects/:id/eval`
+  - `GET /api/projects/:id/ontology`
+  - `GET /api/projects/:id/bridge`
+  - `GET /api/runtime/workflows`
+  - `GET /api/runtime/workflows/:id`
+  - `POST /api/runtime/tasks/:id/retry`
+  - `POST /api/runtime/tasks/:id/cancel`
+  - `GET /api/eval/cases`
+  - `GET /api/eval/suites`
+  - `POST /api/eval/run`
+  - `GET /api/eval/runs`
+  - `GET /api/eval/runs/:id`
+  - `GET /api/ontology/registry`
+  - `GET /api/ontology/registry/:id`
+  - `POST /api/ontology/activate`
+  - `POST /api/ontology/deprecate`
+  - `GET /api/bridge/adapters`
+  - `POST /api/bridge/sync`
+  - `GET /api/bridge/sync-records`
 - 已 seed 3 个演示项目，用于演示首发验证、增长优化、复盘沉淀
 - 已 seed 本地知识资产与 chunk，用于 SOP / rule / case / template / evaluation sample 检索
 - 生命周期总览 / 生命周期阶段页 / 项目详情页已经切换为 `SQLite -> API -> repository -> UI`
@@ -47,11 +77,30 @@
   - review generate
   - asset candidate publish
   - execution history / review / asset candidate
+- 动作中心、复盘沉淀、经验资产库已经正式迁移到：
+  - `SQLite -> Local API -> localSandboxRepositories -> UI`
+- 系统已具备本地治理与沉淀能力：
+  - Action Center
+  - Review Center
+  - Asset Library
+  - Knowledge Feedback Loop
+  - Evaluation / Verification Loop
+- 系统已进一步具备更接近生产底座的最小内核能力：
+  - Runtime Kernel（workflow / task / event / retry）
+  - Evaluation Harness（case / suite / run / result / gate）
+  - Ontology Governance（registry / version / policy / template / skill）
+  - Bridge Adapter Layer（local_mock / file_bridge / api_bridge）
 - 角色首页已从泛化 dashboard 升级为基于角色原型的同源闭环入口：
   - `boss` 已正式迁移
   - `operations_director` 已正式迁移
   - `product_rnd_director` / `visual_director` 已有 API-backed 框架页
 - 老板页与运营总监页已经开始反映审批、执行、复盘、资产候选的闭环状态摘要
+- 老板页、运营总监页、产品研发总监页、视觉总监页已经开始反映治理层状态，例如待处理动作、review 沉淀、资产沉淀、知识回流与闭环完成信号
+- `/project/:id` 已新增 runtime timeline、latest eval gate、ontology references、bridge freshness 摘要
+- 新增独立入口页：
+  - `/eval-center`
+  - `/ontology-registry`
+  - `/bridge-diagnostics`
 - 其他页面仍保留现有 `pilotRuntime` / repository-first 原型能力，作为后续批次迁移对象
 
 当前**尚未实现**：
@@ -61,10 +110,15 @@
 - 真实外部执行 connector
 - 完整动作中心与审批流
 - 复杂异步 orchestration / workflow engine
+- 完整分布式 runtime / worker / queue
 - 完整资产治理与外部知识库发布
+- 更完整的 ontology 内容平台与治理流
+- 真实桥接器与外部系统 API 同步
+- 真实线上实验 / A/B 基础设施
 - 更完整的 product_rnd_director / visual_director 角色深度编排
+- 非 mock connector 的真实执行端替换
 
-也就是说，Batch 4 的目标是把**人 × 大脑 × Agent × 执行端**的本地 mock 闭环真正跑通，而不是假装已经接入生产执行系统。
+也就是说，Batch 6 的目标是把**项目级执行与治理闭环**继续升级为**可运行、可评测、可治理、可桥接**的经营决策内核，而不是假装已经接入完整生产调度系统。
 
 系统中的职责分工如下：
 

@@ -1,17 +1,89 @@
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { CheckCircle2, Clock, PlayCircle, RotateCcw, Zap } from "lucide-react";
 import { usePilotData } from "../../../data-access/PilotDataProvider";
+import { useRemoteQuery } from "../../../data-access/useRemoteQuery";
+import { getRoleTypeLabel } from "../../../domain/runtime/labels";
+import type { ActionDomain, ApprovalStatus, ExecutionStatus, RoleType } from "../../../domain/types/model";
 import { QueryStatusPanel } from "../ui/QueryStatusPanel";
 
-export function ActionCenter() {
-  const {
-    repositories,
-    actions,
-  } = usePilotData();
+const roleOptions: Array<{ value: "all" | RoleType; label: string }> = [
+  { value: "all", label: "全部角色" },
+  { value: "boss", label: "老板" },
+  { value: "operations_director", label: "运营总监" },
+  { value: "product_rnd_director", label: "产品研发总监" },
+  { value: "visual_director", label: "视觉总监" },
+];
 
-  const query = repositories.actionCenter.getOverview();
-  const viewModel = query.data.viewModel;
-  const recommendedActions = query.data.recommendedActions;
+const domainOptions: Array<{ value: "all" | ActionDomain; label: string }> = [
+  { value: "all", label: "全部动作域" },
+  { value: "operations", label: "运营执行" },
+  { value: "product_rnd", label: "商品研发" },
+  { value: "visual", label: "视觉推进" },
+];
+
+const approvalOptions: Array<{ value: "all" | ApprovalStatus; label: string }> = [
+  { value: "all", label: "全部审批状态" },
+  { value: "pending", label: "待审批" },
+  { value: "approved", label: "已批准" },
+  { value: "rejected", label: "已驳回" },
+  { value: "not_required", label: "无需审批" },
+];
+
+const executionOptions: Array<{ value: "all" | ExecutionStatus; label: string }> = [
+  { value: "all", label: "全部执行状态" },
+  { value: "suggested", label: "建议中" },
+  { value: "queued", label: "排队中" },
+  { value: "in_progress", label: "执行中" },
+  { value: "completed", label: "已完成" },
+  { value: "failed", label: "失败" },
+];
+
+export function ActionCenter() {
+  const { sandboxRepositories } = usePilotData();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const role = (searchParams.get("role") as RoleType | null) ?? "all";
+  const actionDomain = (searchParams.get("actionDomain") as ActionDomain | null) ?? "all";
+  const approvalStatus = (searchParams.get("approvalStatus") as ApprovalStatus | null) ?? "all";
+  const executionStatus = (searchParams.get("executionStatus") as ExecutionStatus | null) ?? "all";
+  const projectId = searchParams.get("projectId") ?? "";
+
+  const { query, isLoading } = useRemoteQuery(
+    () =>
+      sandboxRepositories.governance.getActionCenter({
+        role: role === "all" ? undefined : role,
+        actionDomain: actionDomain === "all" ? undefined : actionDomain,
+        approvalStatus: approvalStatus === "all" ? undefined : approvalStatus,
+        executionStatus: executionStatus === "all" ? undefined : executionStatus,
+        projectId: projectId || undefined,
+      }),
+    [sandboxRepositories, role, actionDomain, approvalStatus, executionStatus, projectId],
+    { pollMs: 45_000 },
+  );
+
+  if (isLoading && !query) {
+    return <ShellState title="正在加载动作中心..." description="正在聚合跨项目动作、审批状态和执行状态。" />;
+  }
+
+  if (!query) {
+    return <ShellState title="动作中心暂不可用" description="尚未收到治理层动作视图。" />;
+  }
+
+  const result = query.data;
+
+  if (query.error && result.items.length === 0) {
+    return <ShellState title="动作中心暂不可用" description={query.error} />;
+  }
+
+  function updateParam(key: string, value: string) {
+    const next = new URLSearchParams(searchParams);
+    if (!value || value === "all") {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    setSearchParams(next);
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -24,133 +96,102 @@ export function ActionCenter() {
       />
 
       <section className="grid grid-cols-5 gap-4">
-        <MetricCard icon={<Clock className="size-5 text-orange-600" />} label="待审批" value={viewModel.summary.pending} />
-        <MetricCard icon={<PlayCircle className="size-5 text-blue-600" />} label="排队中" value={viewModel.summary.queued} />
-        <MetricCard icon={<Zap className="size-5 text-violet-600" />} label="执行中" value={viewModel.summary.inProgress} />
-        <MetricCard icon={<CheckCircle2 className="size-5 text-emerald-600" />} label="已完成" value={viewModel.summary.completed} />
-        <MetricCard icon={<RotateCcw className="size-5 text-slate-600" />} label="已回滚" value={viewModel.summary.rolledBack} />
+        <MetricCard icon={<Clock className="size-5 text-orange-600" />} label="待审批" value={result.summary.pendingApprovals} />
+        <MetricCard icon={<PlayCircle className="size-5 text-blue-600" />} label="排队中" value={result.summary.queued} />
+        <MetricCard icon={<Zap className="size-5 text-violet-600" />} label="执行中" value={result.summary.inProgress} />
+        <MetricCard icon={<CheckCircle2 className="size-5 text-emerald-600" />} label="已完成" value={result.summary.completed} />
+        <MetricCard icon={<RotateCcw className="size-5 text-slate-600" />} label="总动作数" value={result.summary.total} />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">待落地动作建议</h2>
-          <p className="mt-1 text-sm text-slate-500">ActionCenter 既看存量动作，也接收经营大脑新编译出的建议动作。</p>
+          <h2 className="text-lg font-semibold text-slate-900">跨项目动作筛选</h2>
+          <p className="mt-1 text-sm text-slate-500">Batch 5 起动作中心不再只服务单项目，而是统一看跨项目、跨角色、跨动作域的治理状态。</p>
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          {recommendedActions.map((action) => (
-            <div key={`${action.projectId}-${action.id}`} className="rounded-xl border border-slate-200 p-4">
-              <div className="font-medium text-slate-900">{action.description}</div>
-              <div className="mt-2 text-sm text-slate-600">{action.owner}</div>
-              <div className="mt-2 text-xs text-slate-500">
-                {action.expectedMetric} · {action.confidenceLabel}
-              </div>
-              <div className="mt-1 text-xs text-slate-500">
-                {action.requiredApproval ? "需要人工审批" : "可由场景 Agent 继续推进"}
-              </div>
-              <Link to={`/project/${action.projectId}`} className="mt-3 inline-flex text-sm text-blue-600 hover:text-blue-700">
-                回到项目详情
-              </Link>
-            </div>
-          ))}
+        <div className="grid grid-cols-[180px,180px,180px,180px,1fr] gap-4">
+          <SelectField
+            label="角色"
+            value={role}
+            options={roleOptions}
+            onChange={(value) => updateParam("role", value)}
+          />
+          <SelectField
+            label="动作域"
+            value={actionDomain}
+            options={domainOptions}
+            onChange={(value) => updateParam("actionDomain", value)}
+          />
+          <SelectField
+            label="审批"
+            value={approvalStatus}
+            options={approvalOptions}
+            onChange={(value) => updateParam("approvalStatus", value)}
+          />
+          <SelectField
+            label="执行"
+            value={executionStatus}
+            options={executionOptions}
+            onChange={(value) => updateParam("executionStatus", value)}
+          />
+          <label className="space-y-2">
+            <div className="text-sm font-medium text-slate-700">项目 ID</div>
+            <input
+              value={projectId}
+              onChange={(event) => updateParam("projectId", event.target.value)}
+              placeholder="按 projectId 过滤"
+              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-blue-500"
+            />
+          </label>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">待审批动作</h2>
-          <p className="mt-1 text-sm text-slate-500">让老板和总监只处理真正需要拍板的动作，同时显式看到幂等键和审计数。</p>
+          <h2 className="text-lg font-semibold text-slate-900">动作列表</h2>
+          <p className="mt-1 text-sm text-slate-500">这里只做统一治理视图；具体证据、决策和执行入口仍然回到项目详情页。</p>
         </div>
         <div className="space-y-3">
-          {viewModel.columns.pendingApprovals.map((pending) => (
-            <div key={pending.id} className="rounded-xl border border-slate-200 p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="font-medium text-slate-900">{pending.title}</div>
-                    <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700">{pending.riskLabel}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{pending.approvalLabel}</span>
+          {result.items.length === 0 ? (
+            <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">当前筛选条件下没有动作。</div>
+          ) : (
+            result.items.map((item) => (
+              <div key={item.actionId} className="rounded-xl border border-slate-200 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="font-medium text-slate-900">{item.description}</div>
+                      <Tag label={item.actionDomain ?? "unknown"} tone="info" />
+                      <Tag label={item.approvalStatus} tone={item.approvalStatus === "pending" ? "warning" : item.approvalStatus === "approved" ? "success" : "neutral"} />
+                      <Tag label={item.executionStatus} tone={item.executionStatus === "completed" ? "success" : item.executionStatus === "queued" || item.executionStatus === "in_progress" ? "info" : "neutral"} />
+                      {item.workflowStatus ? (
+                        <Tag
+                          label={`runtime:${item.workflowStatus}`}
+                          tone={item.workflowStatus === "failed" || item.workflowStatus === "retryable" ? "warning" : item.workflowStatus === "completed" ? "success" : "neutral"}
+                        />
+                      ) : null}
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {item.projectName} · {item.owner} · {item.role ? getRoleTypeLabel(item.role) : "未绑定角色"}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {item.actionType} · 优先级 {item.priority} · 更新时间 {item.updatedAt}
+                    </div>
+                    {item.workflowId ? (
+                      <div className="text-xs text-slate-500">
+                        {item.workflowSummary ?? "workflow"} · {item.workflowId}
+                      </div>
+                    ) : null}
                   </div>
-                  <p className="text-sm text-slate-600">{pending.summary}</p>
-                  <div className="text-xs text-slate-500">
-                    {pending.idempotencyKey} · {pending.auditCount} 条审计记录
-                  </div>
-                  <Link to={`/project/${pending.projectId}`} className="text-sm text-blue-600 hover:text-blue-700">
-                    查看项目详情
-                  </Link>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => actions.rejectAction(pending.id, "暂缓执行，先保留现状")}
+                  <Link
+                    to={`/project/${item.projectId}`}
                     className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
                   >
-                    拒绝
-                  </button>
-                  <button
-                    onClick={() => actions.approveAction(pending.id)}
-                    className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    批准
-                  </button>
+                    查看项目
+                  </Link>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid grid-cols-3 gap-6">
-        <ColumnCard
-          title="排队中"
-          items={viewModel.columns.queued}
-          actionLabel="写回完成"
-          onAction={(actionId, idempotencyKey) =>
-            actions.writeExecutionResult(actionId, {
-              actorId: "automation.executor",
-              actorType: "automation",
-              status: "completed",
-              summary: "动作已执行完成，并回写核心结果。",
-              idempotencyKey,
-              targetSystem: "pilot.executor",
-              targetObjectId: actionId,
-            })
-          }
-        />
-        <ColumnCard
-          title="执行中"
-          items={viewModel.columns.inProgress}
-          actionLabel="回写进度"
-          onAction={(actionId, idempotencyKey) =>
-            actions.writeExecutionResult(actionId, {
-              actorId: "scenario.agent",
-              actorType: "agent",
-              status: "completed",
-              summary: "场景 Agent 已完成执行并同步回写结果。",
-              idempotencyKey,
-              targetSystem: "scenario.agent",
-              targetObjectId: actionId,
-            })
-          }
-        />
-        <ColumnCard title="已完成" items={viewModel.columns.completed} />
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">执行动态</h2>
-          <p className="mt-1 text-sm text-slate-500">让动作从建议到执行、写回、幂等处理的链路完全可追踪。</p>
-        </div>
-        <div className="space-y-3">
-          {viewModel.feed.map((item) => (
-            <div key={item.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-4">
-              <div className="mt-1 h-2 w-2 rounded-full bg-blue-500" />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-slate-900">{item.summary}</div>
-                <div className="mt-1 text-xs text-slate-500">
-                  {item.statusLabel} · {item.time}
-                </div>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </section>
     </div>
@@ -175,51 +216,54 @@ function MetricCard({
   );
 }
 
-function ColumnCard({
-  title,
-  items,
-  actionLabel,
-  onAction,
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
 }: {
-  title: string;
-  items: Array<{
-    id: string;
-    title: string;
-    projectId: string;
-    executionLabel: string;
-    writebackStatusLabel: string;
-    idempotencyKey: string;
-  }>;
-  actionLabel?: string;
-  onAction?: (actionId: string, idempotencyKey: string) => void;
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-      <div className="mt-4 space-y-3">
-        {items.length === 0 && <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">当前没有对应动作。</div>}
-        {items.map((item) => (
-          <div key={item.id} className="rounded-xl border border-slate-200 p-4">
-            <div className="font-medium text-slate-900">{item.title}</div>
-            <div className="mt-1 text-xs text-slate-500">
-              {item.executionLabel} · {item.writebackStatusLabel}
-            </div>
-            <div className="mt-1 text-xs text-slate-500">{item.idempotencyKey}</div>
-            <div className="mt-3 flex items-center justify-between">
-              <Link to={`/project/${item.projectId}`} className="text-sm text-blue-600 hover:text-blue-700">
-                查看项目
-              </Link>
-              {actionLabel && onAction && (
-                <button
-                  onClick={() => onAction(item.id, item.idempotencyKey)}
-                  className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                >
-                  {actionLabel}
-                </button>
-              )}
-            </div>
-          </div>
+    <label className="space-y-2">
+      <div className="text-sm font-medium text-slate-700">{label}</div>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none focus:border-blue-500"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
         ))}
+      </select>
+    </label>
+  );
+}
+
+function Tag({ label, tone }: { label: string; tone: "neutral" | "warning" | "success" | "info" }) {
+  const toneClass =
+    tone === "warning"
+      ? "bg-amber-50 text-amber-700"
+      : tone === "success"
+        ? "bg-emerald-50 text-emerald-700"
+        : tone === "info"
+          ? "bg-blue-50 text-blue-700"
+          : "bg-slate-100 text-slate-700";
+
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}>{label}</span>;
+}
+
+function ShellState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+        <p className="mt-2 text-sm text-slate-600">{description}</p>
       </div>
     </div>
   );

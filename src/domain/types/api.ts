@@ -1,18 +1,48 @@
 import type {
+  ActionCenterResponse,
   ActionDomain,
+  AssetLibraryResponse,
   ApplicabilitySpec,
   ApprovalStatus,
   AssetType,
+  BridgeConfig,
+  BridgeMode,
+  ConnectorRegistryItem,
   ConfidenceLevel,
+  EvalCase,
+  EvalHarnessSummary,
+  EvalResult,
+  EvalRun,
+  EvalSuite,
+  EvaluationSummary,
   ExecutionStatus,
+  GateDecision,
+  KnowledgeFeedbackStatus,
+  OntologyLineage,
+  OntologyRegistryItem,
+  OntologyVersionRecord,
+  ProjectBridgeSummary,
+  ProjectOntologyReferences,
   RoleDashboardResponse,
   KnowledgeRole,
   LifecycleStage,
+  ProjectRuntimeSummary,
+  ProjectGovernanceSummary,
   ProjectStatus,
+  RetryRecord,
+  ReviewCenterResponse,
+  ReviewStatus,
+  ReviewType,
   RoleType,
   RoleStoryRole,
   RiskLevel,
+  RuntimeEvent,
+  RuntimeStatus,
+  SourceAdapter,
+  SyncRecord,
+  TaskRun,
   TrendDirection,
+  WorkflowRun,
 } from "./model";
 
 export interface ApiErrorPayload {
@@ -80,7 +110,12 @@ export interface ApiReviewDto {
   metricImpact?: string;
   nextSuggestion?: string;
   outcome: Record<string, unknown>;
+  reviewStatus?: ReviewStatus;
+  reviewType?: ReviewType;
+  reviewQualityScore?: number;
+  isPromotedToAsset?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ApiAssetCandidateDto {
@@ -90,7 +125,27 @@ export interface ApiAssetCandidateDto {
   title: string;
   contentMarkdown: string;
   status: string;
+  assetType?: AssetType;
+  reviewStatus?: ReviewStatus;
+  publishStatus?: "candidate" | "published" | "deprecated";
+  reusabilityScore?: number;
+  feedbackToKnowledge?: KnowledgeFeedbackStatus;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ApiPublishedAssetDto {
+  assetId: string;
+  candidateId?: string | null;
+  projectId: string;
+  sourceReviewId?: string | null;
+  assetType: AssetType;
+  title: string;
+  contentMarkdown: string;
+  publishStatus: "candidate" | "published" | "deprecated";
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApiApprovalDto {
@@ -496,6 +551,96 @@ export interface ApiPublishAssetCandidateResponseDto {
   assetCandidate: ApiAssetCandidateDto;
 }
 
+export type ApiActionCenterItemDto = ActionCenterResponse["items"][number];
+
+export interface ApiActionCenterResponseDto extends ActionCenterResponse {}
+
+export type ApiReviewCenterItemDto = ReviewCenterResponse["items"][number];
+
+export interface ApiReviewCenterResponseDto extends ReviewCenterResponse {}
+
+export interface ApiPromoteReviewToAssetRequestDto {
+  assetType: AssetType;
+  operator: string;
+  reason?: string;
+}
+
+export interface ApiPromoteReviewToAssetResponseDto {
+  review: ApiReviewDto & {
+    reviewStatus: ReviewStatus;
+    reviewType: ReviewType;
+    reviewQualityScore: number;
+    isPromotedToAsset: boolean;
+    updatedAt: string;
+  };
+  assetCandidate: ApiAssetCandidateDto;
+}
+
+export type ApiAssetLibraryItemDto = AssetLibraryResponse["items"][number];
+
+export interface ApiAssetLibraryResponseDto extends AssetLibraryResponse {}
+
+export interface ApiPublishAssetRequestDto {
+  operator: string;
+  reason?: string;
+}
+
+export interface ApiPublishAssetResponseDto {
+  publishedAsset: ApiPublishedAssetDto;
+}
+
+export interface ApiFeedbackToKnowledgeRequestDto {
+  sourceType?: "review" | "asset_candidate" | "published_asset";
+  sourceId?: string;
+  feedbackMode: string;
+  operator?: string;
+}
+
+export interface ApiKnowledgeFeedbackRecordDto {
+  feedbackId: string;
+  sourceType: "review" | "asset_candidate" | "published_asset";
+  sourceId: string;
+  targetAssetId: string;
+  feedbackMode: string;
+  status: KnowledgeFeedbackStatus;
+  createdAt: string;
+}
+
+export interface ApiFeedbackToKnowledgeResponseDto {
+  feedback: ApiKnowledgeFeedbackRecordDto;
+}
+
+export interface ApiEvaluationRecordDto {
+  evaluationId: string;
+  projectId: string;
+  decisionId?: string | null;
+  actionId?: string | null;
+  runId?: string | null;
+  reviewId?: string | null;
+  candidateId?: string | null;
+  evaluationType: string;
+  relatedObjectType: "decision" | "action" | "execution" | "review" | "asset";
+  relatedObjectId: string;
+  score: number;
+  scoreJson: Record<string, unknown>;
+  notes: string;
+  createdAt: string;
+}
+
+export interface ApiEvaluationSummaryDto extends EvaluationSummary {}
+
+export interface ApiEvaluationsResponseDto {
+  records: ApiEvaluationRecordDto[];
+  summary: ApiEvaluationSummaryDto;
+}
+
+export interface ApiRunEvaluationsRequestDto {
+  projectId: string;
+  scope: "decision" | "action" | "execution" | "review" | "asset";
+}
+
+export interface ApiProjectGovernanceResponseDto extends ProjectGovernanceSummary {}
+
 export type ApiRoleProfileDto = RoleDashboardResponse["roleProfile"];
 
 export type ApiRoleProjectCardDto = RoleDashboardResponse["projectCards"][number];
@@ -520,3 +665,130 @@ export interface ApiRoleDashboardResponseDto {
   opportunityCards: ApiRoleOpportunityCardDto[];
   assetSummary: ApiRoleAssetSummaryCardDto[];
 }
+
+export type ApiWorkflowRunDto = WorkflowRun;
+export type ApiTaskRunDto = TaskRun;
+export type ApiRuntimeEventDto = RuntimeEvent;
+export type ApiRetryRecordDto = RetryRecord;
+
+export interface ApiRuntimeWorkflowsResponseDto {
+  workflows: ApiWorkflowRunDto[];
+  filters: {
+    projectId: string | null;
+    actionId: string | null;
+    status: RuntimeStatus | null;
+  };
+}
+
+export interface ApiRuntimeWorkflowDetailResponseDto {
+  workflow: ApiWorkflowRunDto;
+  tasks: ApiTaskRunDto[];
+  events: ApiRuntimeEventDto[];
+  retryRecords: ApiRetryRecordDto[];
+}
+
+export interface ApiRuntimeTaskOperatorRequestDto {
+  operator?: string;
+  reason?: string;
+}
+
+export interface ApiRuntimeRetryTaskResponseDto {
+  workflow: ApiWorkflowRunDto;
+  originalTask: ApiTaskRunDto;
+  newTask: ApiTaskRunDto;
+  retryRecord: ApiRetryRecordDto;
+  latestEvent: ApiRuntimeEventDto;
+}
+
+export interface ApiRuntimeCancelTaskResponseDto {
+  workflow: ApiWorkflowRunDto;
+  task: ApiTaskRunDto;
+  latestEvent: ApiRuntimeEventDto;
+}
+
+export type ApiEvalCaseDto = EvalCase;
+export type ApiEvalSuiteDto = EvalSuite;
+export type ApiEvalRunDto = EvalRun;
+export type ApiEvalResultDto = EvalResult;
+export type ApiGateDecisionDto = GateDecision;
+
+export interface ApiEvalCasesResponseDto {
+  cases: ApiEvalCaseDto[];
+}
+
+export interface ApiEvalSuitesResponseDto {
+  suites: ApiEvalSuiteDto[];
+}
+
+export interface ApiRunEvalRequestDto {
+  projectId: string;
+  suiteId: string;
+}
+
+export interface ApiEvalRunResponseDto {
+  run: ApiEvalRunDto;
+  results: ApiEvalResultDto[];
+  gateDecision: ApiGateDecisionDto | null;
+}
+
+export interface ApiEvalRunsResponseDto {
+  runs: ApiEvalRunDto[];
+}
+
+export type ApiOntologyRegistryItemDto = OntologyRegistryItem;
+export type ApiOntologyVersionRecordDto = OntologyVersionRecord;
+export type ApiOntologyLineageDto = OntologyLineage;
+
+export interface ApiOntologyRegistryResponseDto {
+  items: ApiOntologyRegistryItemDto[];
+  filters: {
+    itemType: string | null;
+    status: string | null;
+  };
+}
+
+export interface ApiOntologyRegistryDetailResponseDto {
+  item: ApiOntologyRegistryItemDto;
+  latestPayload: Record<string, unknown>;
+  versions: ApiOntologyVersionRecordDto[];
+  lineageReferences: ApiOntologyLineageDto[];
+}
+
+export interface ApiOntologyStatusMutationRequestDto {
+  registryId: string;
+  operator?: string;
+  reason?: string;
+}
+
+export type ApiOntologyStatusMutationResponseDto = ApiOntologyRegistryDetailResponseDto;
+
+export type ApiBridgeConfigDto = BridgeConfig;
+export type ApiSourceAdapterDto = SourceAdapter;
+export type ApiSyncRecordDto = SyncRecord;
+export type ApiConnectorRegistryItemDto = ConnectorRegistryItem;
+
+export interface ApiBridgeAdaptersResponseDto {
+  adapters: ApiSourceAdapterDto[];
+  connectors: ApiConnectorRegistryItemDto[];
+}
+
+export interface ApiBridgeSyncRequestDto {
+  adapterId: string;
+}
+
+export interface ApiBridgeSyncResponseDto {
+  adapter: ApiSourceAdapterDto;
+  syncRecord: ApiSyncRecordDto;
+}
+
+export interface ApiBridgeSyncRecordsResponseDto {
+  records: ApiSyncRecordDto[];
+  filters: {
+    adapterId: string | null;
+  };
+}
+
+export type ApiProjectRuntimeSummaryDto = ProjectRuntimeSummary;
+export type ApiProjectEvalSummaryDto = EvalHarnessSummary;
+export type ApiProjectOntologyReferencesDto = ProjectOntologyReferences;
+export type ApiProjectBridgeSummaryDto = ProjectBridgeSummary;

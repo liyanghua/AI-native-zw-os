@@ -23,12 +23,15 @@
 | 风险与审批 | `/risk-approval` |
 | 复盘沉淀 | `/review-assets` |
 | 经验资产库 | `/asset-library` |
+| 评测中心 | `/eval-center` |
+| Ontology Registry | `/ontology-registry` |
+| Bridge 诊断 | `/bridge-diagnostics` |
 
 产品语义上仍对应 IA 中的 Command Center、Lifecycle stages、Action Hub、Governance、Review、Assets；**界面文案以中文为准**（见 `lang.md`）。
 
 ---
 
-## 1.1 Batch 4 数据来源边界
+## 1.1 Batch 6 数据来源边界
 
 当前页面按两类数据源运行：
 
@@ -44,6 +47,12 @@
 - `/launch-verification`
 - `/growth-optimization`
 - `/project/:id`
+- `/action-center`
+- `/review-assets`
+- `/asset-library`
+- `/eval-center`
+- `/ontology-registry`
+- `/bridge-diagnostics`
 
 这些页面走：
 
@@ -52,17 +61,18 @@
 其中：
 
 - `/project/:id` 已升级为项目 + 证据 + 决策 + 执行闭环页面
+- `/project/:id` 已新增治理摘要卡，可跳转动作中心 / 复盘中心 / 资产库
+- `/project/:id` 已新增 runtime timeline、latest eval gate、ontology references、bridge freshness 摘要
 - `/boss`、`/operations-director` 已能反映审批、执行、review、asset candidate 的状态摘要
+- `/boss`、`/operations-director`、`/product-rnd-director`、`/visual-director` 已开始反映治理层摘要
+- `/boss`、`/operations-director`、`/product-rnd-director`、`/visual-director` 已开始反映 runtime failed/retryable、gate warning、bridge stale sync 等 Batch 6 摘要
 - `/product-rnd-director`、`/visual-director` 仍为 API-backed skeleton，但与同一 `projectId` 同源
 
 ### 仍保留现有 in-memory / pilotRuntime 的页面
 
-- `/action-center`
 - `/risk-approval`
-- `/review-assets`
-- `/asset-library`
 
-这些页面属于后续批次迁移对象。
+该页面仍属于后续批次迁移对象。
 
 ---
 
@@ -256,7 +266,7 @@ Goal:
 - unify all collaboration around one project object
 
 Core models:
-- Batch 4：`GET /api/projects/:id` + `GET /api/projects/:id/knowledge` + Brain API + `GET /api/projects/:id/lineage`
+- Batch 6：`GET /api/projects/:id` + `GET /api/projects/:id/knowledge` + Brain API + `GET /api/projects/:id/lineage` + `GET /api/projects/:id/governance` + `GET /api/projects/:id/runtime` + `GET /api/projects/:id/eval` + `GET /api/projects/:id/ontology` + `GET /api/projects/:id/bridge`
 - `localSandboxRepositories.projects.getWorkbench()`
 - `KpiMetric[]`
 - `RiskSignal[]`
@@ -272,6 +282,11 @@ Core models:
 - `ExecutionRun`
 - `ExecutionLog`
 - `WritebackRecord`
+- `ProjectGovernanceSummary`
+- `ProjectRuntimeSummary`
+- `EvalHarnessSummary`
+- `ProjectOntologyReferences`
+- `ProjectBridgeSummary`
 
 备注：
 
@@ -279,6 +294,8 @@ Core models:
 - 项目详情页已接入 `boss` / `operations_director` / `product_rnd_director` / `visual_director` 四个同源 role story 切换区
 - 项目详情页当前已可逐步触发：批准 / 驳回 / Agent trigger / mock run / writeback / review / asset candidate publish
 - execution 仍为 mock connector，同步 orchestration 仍属于本地沙箱验证态
+- 项目详情页当前已展示 actions/reviews/assets/evaluations/feedback 的治理摘要，并可跳到治理页
+- 项目详情页当前已展示 runtime workflow status、recent events、gate decision、ontology lineage refs、bridge freshness
 - `boss` / `operations-director` 已正式迁移到 role dashboard API
 - `product-rnd-director` / `visual-director` 当前为 skeleton 迁移
 
@@ -290,9 +307,11 @@ Goal:
 - manage decision-to-action lifecycle
 
 Core models:
-- `ActionItem[]`
-- `ApprovalRecord[]`
-- `ExecutionLog[]`
+- Batch 6：`GET /api/actions`
+- `ActionCenterResponse`
+- `ActionCenterItem[]`
+- `workflowStatus`
+- `workflowSummary`
 
 ---
 
@@ -318,10 +337,10 @@ Goal:
 - turn outcome into learning and reusable assets
 
 Core models:
-- `ReviewSummary`
-- `AttributionFactor[]`
+- Batch 5：`GET /api/reviews`
+- `ReviewCenterResponse`
+- `ReviewCenterItem[]`
 - `AssetCandidate[]`
-- `PublishedAsset[]`
 
 ---
 
@@ -331,8 +350,63 @@ Goal:
 - manage reusable operating assets
 
 Core models:
+- Batch 5：`GET /api/assets`
+- `AssetLibraryResponse`
+- `AssetLibraryItem[]`
 - `PublishedAsset[]`
 - `AssetCandidate[]`
+
+---
+
+### 3.16 Eval Center（`/eval-center`）
+
+Goal:
+- rerun eval suite against seed projects
+- inspect recent eval runs, gate decisions, and score summary
+
+Core models:
+- Batch 6：`GET /api/eval/cases`
+- Batch 6：`GET /api/eval/suites`
+- Batch 6：`POST /api/eval/run`
+- Batch 6：`GET /api/eval/runs`
+- Batch 6：`GET /api/eval/runs/:id`
+- `EvalCase[]`
+- `EvalSuite[]`
+- `EvalRun[]`
+- `EvalResult[]`
+- `GateDecision`
+
+---
+
+### 3.17 Ontology Registry（`/ontology-registry`）
+
+Goal:
+- manage role profile, stage rule, action policy, review pattern, template, skill status and version
+
+Core models:
+- Batch 6：`GET /api/ontology/registry`
+- Batch 6：`GET /api/ontology/registry/:id`
+- Batch 6：`POST /api/ontology/activate`
+- Batch 6：`POST /api/ontology/deprecate`
+- `OntologyRegistryItem[]`
+- `OntologyVersionRecord[]`
+- `OntologyLineage[]`
+
+---
+
+### 3.18 Bridge Diagnostics（`/bridge-diagnostics`）
+
+Goal:
+- inspect adapter freshness, sync quality, mapping errors, and trigger a manual bridge sync
+
+Core models:
+- Batch 6：`GET /api/bridge/adapters`
+- Batch 6：`POST /api/bridge/sync`
+- Batch 6：`GET /api/bridge/sync-records`
+- `SourceAdapter[]`
+- `BridgeConfig[]`
+- `SyncRecord[]`
+- `ConnectorRegistryItem[]`
 
 ---
 
@@ -373,6 +447,9 @@ Core models:
 | `/risk-approval` | `src/app/components/risk/RiskAndApproval.tsx` |
 | `/review-assets` | `src/app/components/review/ReviewAndAssets.tsx` |
 | `/asset-library` | `src/app/components/assets/AssetLibrary.tsx` |
+| `/eval-center` | `src/app/components/eval/EvalCenter.tsx` |
+| `/ontology-registry` | `src/app/components/ontology/OntologyRegistry.tsx` |
+| `/bridge-diagnostics` | `src/app/components/bridge/BridgeDiagnostics.tsx` |
 | `*` | `src/app/components/NotFound.tsx` |
 
 共享 UI：`src/app/components/ui/*`。样式入口：`src/styles/index.css`（含 `tailwind.css`、`theme.css`）。
