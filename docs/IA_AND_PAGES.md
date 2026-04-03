@@ -28,7 +28,7 @@
 
 ---
 
-## 1.1 Batch 3 数据来源边界
+## 1.1 Batch 4 数据来源边界
 
 当前页面按两类数据源运行：
 
@@ -48,6 +48,12 @@
 这些页面走：
 
 `SQLite -> Local Node API -> localSandboxRepositories -> useRemoteQuery -> UI`
+
+其中：
+
+- `/project/:id` 已升级为项目 + 证据 + 决策 + 执行闭环页面
+- `/boss`、`/operations-director` 已能反映审批、执行、review、asset candidate 的状态摘要
+- `/product-rnd-director`、`/visual-director` 仍为 API-backed skeleton，但与同一 `projectId` 同源
 
 ### 仍保留现有 in-memory / pilotRuntime 的页面
 
@@ -92,13 +98,14 @@ Goal:
 - show organization and AI efficiency
 
 Core models:
-- Batch 3：`GET /api/roles/boss/dashboard`
+- Batch 4：`GET /api/roles/boss/dashboard`
 - `RoleDashboardResponse`
 - `RoleProjectCard[]`
 - `RoleDecisionQueueItem[]`
 - `RoleRiskCard[]`
 - `RoleOpportunityCard[]`
 - `RoleAssetSummaryCard[]`
+- 当前已反映 workflow 状态摘要：`pending approvals`、`in progress runs`、`reviews generated`、`asset candidates`
 
 ---
 
@@ -112,7 +119,7 @@ Goal:
 - review legacy upgrade opportunities
 
 Core models:
-- Batch 3：`GET /api/roles/product_rnd_director/dashboard`
+- Batch 4：`GET /api/roles/product_rnd_director/dashboard`
 - `RoleDashboardResponse`
 - 当前为 API-backed skeleton：`summary + projectCards + decisionQueue`
 
@@ -130,12 +137,13 @@ Goal:
 注：原型侧栏文案为「运营与营销总监」，与 README 中「运营&营销总监」一致。
 
 Core models:
-- Batch 3：`GET /api/roles/operations_director/dashboard`
+- Batch 4：`GET /api/roles/operations_director/dashboard`
 - `RoleDashboardResponse`
 - `RoleProjectCard[]`
 - `RoleDecisionQueueItem[]`
 - `RoleRiskCard[]`
 - `RoleOpportunityCard[]`
+- 当前已反映 workflow 状态摘要：`approvalStatus`、`executionStatus`、`actionDomain`
 
 ---
 
@@ -148,7 +156,7 @@ Goal:
 - track template reuse and visual asset quality
 
 Core models:
-- Batch 3：`GET /api/roles/visual_director/dashboard`
+- Batch 4：`GET /api/roles/visual_director/dashboard`
 - `RoleDashboardResponse`
 - 当前为 API-backed skeleton：`summary + projectCards + decisionQueue`
 
@@ -248,7 +256,7 @@ Goal:
 - unify all collaboration around one project object
 
 Core models:
-- Batch 2：`GET /api/projects/:id` + `GET /api/projects/:id/knowledge` + Brain API
+- Batch 4：`GET /api/projects/:id` + `GET /api/projects/:id/knowledge` + Brain API + `GET /api/projects/:id/lineage`
 - `localSandboxRepositories.projects.getWorkbench()`
 - `KpiMetric[]`
 - `RiskSignal[]`
@@ -260,12 +268,17 @@ Core models:
 - `DecisionContext`
 - `DecisionObject`
 - `RoleStory`
+- `ActionLineage`
+- `ExecutionRun`
+- `ExecutionLog`
+- `WritebackRecord`
 
 备注：
 
-- 项目详情页已经升级为“项目 + 证据 + 决策”页面
+- 项目详情页已经升级为“项目 + 证据 + 决策 + 执行闭环”页面
 - 项目详情页已接入 `boss` / `operations_director` / `product_rnd_director` / `visual_director` 四个同源 role story 切换区
-- Agent / Execution 仍明确为 `Batch 3+` 占位态
+- 项目详情页当前已可逐步触发：批准 / 驳回 / Agent trigger / mock run / writeback / review / asset candidate publish
+- execution 仍为 mock connector，同步 orchestration 仍属于本地沙箱验证态
 - `boss` / `operations-director` 已正式迁移到 role dashboard API
 - `product-rnd-director` / `visual-director` 当前为 skeleton 迁移
 
@@ -346,7 +359,7 @@ Core models:
 | 路径 | 组件文件 |
 |------|-----------|
 | `/`、`/boss` | `src/app/components/dashboards/BossDashboard.tsx` |
-| `/product-director` | `src/app/components/dashboards/ProductDirectorDashboard.tsx` |
+| `/product-rnd-director`、`/product-director` | `src/app/components/dashboards/ProductDirectorDashboard.tsx` |
 | `/operations-director` | `src/app/components/dashboards/OperationsDirectorDashboard.tsx` |
 | `/visual-director` | `src/app/components/dashboards/VisualDirectorDashboard.tsx` |
 | `/lifecycle` | `src/app/components/lifecycle/LifecycleOverview.tsx` |

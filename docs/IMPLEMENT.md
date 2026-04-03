@@ -170,6 +170,17 @@ When extending beyond the current prototype:
 
 ## 8. Progress Notes
 
+### 2026-04-03：Batch 4 mock 执行闭环落地
+
+- **SQLite 扩展**：新增 `approvals`、`execution_runs`、`execution_logs`、`writeback_records`，并扩展 `actions`、`reviews`、`asset_candidates` 的闭环字段。
+- **执行 API**：新增 `POST /api/actions/:id/approve`、`POST /api/actions/:id/reject`、`POST /api/agent/trigger`、`POST /api/execution/mock-run`、`POST /api/execution/:runId/writeback`、`POST /api/review/generate`、`POST /api/assets/publish-candidate`，以及 `GET /api/projects/:id/lineage`。
+- **server orchestration**：本地 server 现已承担审批校验、execution run 创建、mock connector 调用、writeback、review generate、asset candidate publish 的状态推进逻辑。
+- **domain-aware mock connector**：`operations`、`product_rnd`、`visual` 三类动作域现在返回不同的 request / response payload、指标变化与结果说明。
+- **repository 收口**：`localSandboxRepositories` 新增 `executionRepository`，项目工作台聚合查询已带 execution history、review、asset candidate 与 lineage。
+- **项目详情页升级**：`/project/:id` 新增 Action Execution、Execution History、Review、Asset Candidate 四个区块，可逐步触发批准 / 驳回 / trigger / mock-run / writeback / review / publish。
+- **角色页联动**：`boss` 与 `operations_director` dashboard 已开始反映 pending approvals、execution status、review generated、asset candidate 等闭环状态。
+- **未纳入 Batch 4**：真实外部执行 connector、复杂异步 orchestration、动作中心正式迁移、完整资产治理仍留到后续批次。
+
 ### 2026-04-02：Batch 2 本地知识检索与决策编译主线落地
 
 - **SQLite 扩展**：新增 `knowledge_assets`、`knowledge_chunks`、`knowledge_chunks_fts`、`knowledge_retrieval_logs`，通过 `server/db/schema.mjs` 与 `server/db/seed.mjs` 管理。

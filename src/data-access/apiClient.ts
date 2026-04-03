@@ -1,4 +1,8 @@
 import type {
+  ApiAgentTriggerRequestDto,
+  ApiAgentTriggerResponseDto,
+  ApiApproveActionRequestDto,
+  ApiApproveActionResponseDto,
   ApiCompileContextRequestDto,
   ApiCompileContextResponseDto,
   ApiCompileDecisionRequestDto,
@@ -6,12 +10,22 @@ import type {
   ApiCompileRoleStoryRequestDto,
   ApiCompileRoleStoryResponseDto,
   ApiErrorPayload,
+  ApiGenerateReviewRequestDto,
+  ApiGenerateReviewResponseDto,
   ApiKnowledgeSearchRequestDto,
   ApiKnowledgeSearchResultDto,
-  ApiRoleDashboardResponseDto,
+  ApiMockRunRequestDto,
+  ApiMockRunResponseDto,
+  ApiProjectLineageResponseDto,
   ApiProjectKnowledgeResponseDto,
   ApiProjectDetailDto,
   ApiProjectListResponseDto,
+  ApiPublishAssetCandidateRequestDto,
+  ApiPublishAssetCandidateResponseDto,
+  ApiRejectActionRequestDto,
+  ApiRejectActionResponseDto,
+  ApiRoleDashboardResponseDto,
+  ApiWritebackResponseDto,
 } from "../domain/types/api";
 import type { LifecycleStage } from "../domain/types/model";
 
@@ -116,6 +130,13 @@ export function createApiClient({ baseUrl = "/api" }: { baseUrl?: string } = {})
     async getProjectDetail(projectId: string) {
       return request<ApiProjectDetailDto>(`/projects/${encodeURIComponent(projectId)}`);
     },
+    async getProjectLineage(projectId: string) {
+      const payload = await request<ApiProjectLineageResponseDto>(
+        `/projects/${encodeURIComponent(projectId)}/lineage`,
+      );
+      ensureResponseKeys(payload, ["projectId", "actions"]);
+      return payload;
+    },
     async searchKnowledge(input: ApiKnowledgeSearchRequestDto) {
       const payload = await request<ApiKnowledgeSearchResultDto>("/knowledge/search", {
         method: "POST",
@@ -170,6 +191,79 @@ export function createApiClient({ baseUrl = "/api" }: { baseUrl?: string } = {})
     async getRoleDashboard(role: string) {
       const payload = await request<ApiRoleDashboardResponseDto>(`/roles/${encodeURIComponent(role)}/dashboard`);
       ensureResponseKeys(payload, ["role", "roleProfile", "summary", "projectCards", "decisionQueue"]);
+      return payload;
+    },
+    async approveAction(actionId: string, input: ApiApproveActionRequestDto) {
+      const payload = await request<ApiApproveActionResponseDto>(`/actions/${encodeURIComponent(actionId)}/approve`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["action", "approval"]);
+      return payload;
+    },
+    async rejectAction(actionId: string, input: ApiRejectActionRequestDto) {
+      const payload = await request<ApiRejectActionResponseDto>(`/actions/${encodeURIComponent(actionId)}/reject`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["action", "approval"]);
+      return payload;
+    },
+    async triggerAgent(input: ApiAgentTriggerRequestDto) {
+      const payload = await request<ApiAgentTriggerResponseDto>("/agent/trigger", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["action", "run", "latestLog"]);
+      return payload;
+    },
+    async runMockExecution(input: ApiMockRunRequestDto) {
+      const payload = await request<ApiMockRunResponseDto>("/execution/mock-run", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["run", "executionResult", "latestLog"]);
+      return payload;
+    },
+    async writebackExecutionRun(runId: string) {
+      const payload = await request<ApiWritebackResponseDto>(`/execution/${encodeURIComponent(runId)}/writeback`, {
+        method: "POST",
+      });
+      ensureResponseKeys(payload, ["action", "writebackRecord", "latestLog"]);
+      return payload;
+    },
+    async generateReview(input: ApiGenerateReviewRequestDto) {
+      const payload = await request<ApiGenerateReviewResponseDto>("/review/generate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["review"]);
+      return payload;
+    },
+    async publishAssetCandidate(input: ApiPublishAssetCandidateRequestDto) {
+      const payload = await request<ApiPublishAssetCandidateResponseDto>("/assets/publish-candidate", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+      ensureResponseKeys(payload, ["assetCandidate"]);
       return payload;
     },
   };

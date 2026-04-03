@@ -1,9 +1,13 @@
 import type {
+  ActionLineage,
   ActionItem,
   AssetCandidate,
   DecisionContext,
   DecisionObject,
   EvidencePack,
+  ExecutionLog,
+  ExecutionResult,
+  ExecutionRun,
   KpiMetric,
   KnowledgeSearchResult,
   LifecycleStage,
@@ -14,6 +18,7 @@ import type {
   RoleStory,
   RoleType,
   ReviewSummary,
+  WritebackRecord,
 } from "../../domain/types/model";
 
 export interface LocalSandboxLifecycleSummary {
@@ -132,6 +137,32 @@ export interface LocalSandboxProjectWorkbenchData extends LocalSandboxProjectDet
     evidencePack: EvidencePack;
   };
   roleStories: Record<RoleType, RoleStory>;
+  actionLineage: {
+    projectId: string;
+    decisionId: string | null;
+    actions: ActionLineage[];
+  };
+  reviews: ReviewSummary[];
 }
 
 export type LocalSandboxRoleDashboardData = RoleDashboardResponse;
+
+export interface LocalSandboxAgentTriggerData {
+  action: ActionItem;
+  run: ExecutionRun;
+  latestLog: ExecutionLog;
+}
+
+export interface LocalSandboxMockRunData {
+  run: ExecutionRun;
+  executionResult: ExecutionResult;
+  latestLog: ExecutionLog;
+}
+
+export interface LocalSandboxWritebackData {
+  action: ActionItem;
+  updatedProjectSnapshot: LocalSandboxProjectSnapshot | null;
+  updatedKpis: KpiMetric[];
+  writebackRecord: WritebackRecord;
+  latestLog: ExecutionLog;
+}

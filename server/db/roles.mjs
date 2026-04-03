@@ -47,6 +47,26 @@ function scoreProject(role, detail, decisionBundle) {
 }
 
 function buildProjectCard(detail, decisionBundle) {
+  const latestAction = detail.actions[0];
+  const workflowStatus = detail.latestReview
+    ? "review_ready"
+    : latestAction?.executionStatus === "completed"
+      ? "execution_completed"
+      : latestAction?.executionStatus === "in_progress" || latestAction?.executionStatus === "queued"
+        ? "execution_in_progress"
+        : latestAction?.approvalStatus === "pending"
+          ? "pending_approval"
+          : "awaiting_action";
+  const workflowSummary = detail.latestReview
+    ? "已形成 review，可继续沉淀资产候选。"
+    : latestAction?.executionStatus === "completed"
+      ? "执行已完成，等待 review 收口。"
+      : latestAction?.executionStatus === "in_progress" || latestAction?.executionStatus === "queued"
+        ? "动作已进入执行链路，等待 connector 返回。"
+        : latestAction?.approvalStatus === "pending"
+          ? "当前仍等待人工审批。"
+          : "当前以推荐动作为主，尚未正式进入执行。";
+
   return {
     projectId: detail.project.projectId,
     projectName: detail.project.name,
@@ -55,7 +75,9 @@ function buildProjectCard(detail, decisionBundle) {
     headlineProblem: detail.latestSnapshot?.currentProblem ?? decisionBundle.decisionObject.problemOrOpportunity,
     headlineOpportunity: detail.opportunities[0]?.title ?? "当前暂无更高优先级商机输入",
     headlineRisk: detail.risks[0]?.description ?? detail.latestSnapshot?.currentRisk ?? "暂无显式风险",
-    primaryRecommendation: decisionBundle.decisionObject.recommendedActions[0]?.description ?? "等待下一步决策",
+    primaryRecommendation: latestAction?.description ?? decisionBundle.decisionObject.recommendedActions[0]?.description ?? "等待下一步决策",
+    workflowStatus,
+    workflowSummary,
     updatedAt: detail.project.updatedAt,
   };
 }
@@ -69,6 +91,9 @@ function buildDecisionQueueItem(detail, decisionBundle, action) {
     requiredOwner: action.owner,
     requiredAction: action.description,
     requiresApproval: action.requiredApproval,
+    approvalStatus: action.approvalStatus,
+    executionStatus: action.executionStatus,
+    actionDomain: action.actionDomain,
     updatedAt: detail.project.updatedAt,
   };
 }
@@ -188,15 +213,35 @@ function buildDecisionQueue(role, bundles) {
   const items = [];
 
   for (const bundle of bundles) {
-    for (const action of bundle.decision.decisionObject.recommendedActions) {
+    const persistedActions = bundle.detail.actions.length > 0
+      ? bundle.detail.actions
+      : bundle.decision.decisionObject.recommendedActions.map((action) => ({
+          ...action,
+          approvalStatus: action.requiredApproval ? "pending" : "not_required",
+          executionStatus: "suggested",
+          actionDomain:
+            action.actionType === "refresh_main_visual" ||
+            action.actionType === "iterate_video_asset" ||
+            action.actionType === "revise_detail_page" ||
+            action.actionType === "support_launch_creative"
+              ? "visual"
+              : action.actionType === "initiate_sampling" ||
+                action.actionType === "refine_product_definition" ||
+                action.actionType === "promote_to_launch_validation" ||
+                action.actionType === "pause_product_direction"
+                ? "product_rnd"
+                : "operations",
+        }));
+
+    for (const action of persistedActions) {
       const relevant =
         role === "boss"
-          ? action.requiredApproval
+          ? action.requiredApproval || action.executionStatus === "completed"
           : role === "operations_director"
             ? true
             : role === "product_rnd_director"
-              ? bundle.detail.project.stage === "review_capture" || action.actionType === "price_adjustment"
-              : action.actionType === "visual_refresh" || bundle.detail.project.stage === "launch_validation";
+              ? bundle.detail.project.stage === "review_capture" || action.actionDomain === "product_rnd"
+              : action.actionDomain === "visual" || bundle.detail.project.stage === "launch_validation";
 
       if (relevant) {
         items.push(buildDecisionQueueItem(bundle.detail, bundle.decision, action));

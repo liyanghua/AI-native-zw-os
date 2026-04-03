@@ -1,11 +1,12 @@
 import type {
+  ActionDomain,
   ApplicabilitySpec,
   ApprovalStatus,
   AssetType,
   ConfidenceLevel,
+  ExecutionStatus,
   RoleDashboardResponse,
   KnowledgeRole,
-  ExecutionStatus,
   LifecycleStage,
   ProjectStatus,
   RoleType,
@@ -53,6 +54,9 @@ export interface ApiOpportunityDto {
 export interface ApiActionDto {
   actionId: string;
   projectId: string;
+  decisionId?: string | null;
+  role?: RoleType | null;
+  actionDomain?: ActionDomain | null;
   actionType: string;
   description: string;
   owner: string;
@@ -60,6 +64,8 @@ export interface ApiActionDto {
   approvalStatus: ApprovalStatus;
   executionStatus: ExecutionStatus;
   expectedMetric?: string | null;
+  expectedDirection?: "up" | "down" | "stable" | null;
+  confidence?: ConfidenceLevel | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,7 +73,12 @@ export interface ApiActionDto {
 export interface ApiReviewDto {
   reviewId: string;
   projectId: string;
+  sourceActionId?: string | null;
+  sourceRunId?: string | null;
   reviewSummary: string;
+  keyOutcome?: string;
+  metricImpact?: string;
+  nextSuggestion?: string;
   outcome: Record<string, unknown>;
   createdAt: string;
 }
@@ -75,10 +86,81 @@ export interface ApiReviewDto {
 export interface ApiAssetCandidateDto {
   candidateId: string;
   projectId: string;
+  sourceReviewId?: string | null;
   title: string;
   contentMarkdown: string;
   status: string;
   createdAt: string;
+}
+
+export interface ApiApprovalDto {
+  approvalId: string;
+  projectId: string;
+  actionId: string;
+  role: RoleType;
+  approvalStatus: ApprovalStatus;
+  approvedBy: string;
+  reason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiExecutionLogDto {
+  logId: string;
+  projectId: string;
+  actionId: string;
+  runId: string;
+  logType: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface ApiExecutionRunDto {
+  runId: string;
+  projectId: string;
+  actionId: string;
+  role: RoleType;
+  actionDomain: ActionDomain;
+  agentName: string;
+  connectorName: string;
+  requestPayload: Record<string, unknown>;
+  responsePayload?: Record<string, unknown> | null;
+  resultStatus: ExecutionStatus;
+  startedAt: string;
+  finishedAt?: string | null;
+}
+
+export interface ApiWritebackRecordDto {
+  writebackId: string;
+  projectId: string;
+  actionId: string;
+  runId: string;
+  targetType: string;
+  targetId: string;
+  payloadHash: string;
+  resultStatus: string;
+  errorMessage?: string | null;
+  createdAt: string;
+}
+
+export interface ApiExecutionMetricChangeDto {
+  metricName: string;
+  previousValue: number;
+  newValue: number;
+  metricUnit?: string;
+}
+
+export interface ApiExecutionResultDto {
+  actionDomain: ActionDomain;
+  resultStatus: ExecutionStatus;
+  changedMetrics: ApiExecutionMetricChangeDto[];
+  notes: string[];
+  riskChange?: string;
+  stageRecommendation?: string;
+  productDefinitionUpdate?: string;
+  launchReadiness?: string;
+  creativeOutcome?: string;
+  assetHint?: string;
 }
 
 export interface ApiProjectSnapshotDto {
@@ -131,6 +213,21 @@ export interface ApiProjectDetailDto {
   actions: ApiActionDto[];
   latestReview: ApiReviewDto | null;
   assetCandidates: ApiAssetCandidateDto[];
+}
+
+export interface ApiActionLineageItemDto {
+  action: ApiActionDto;
+  approvals: ApiApprovalDto[];
+  runs: ApiExecutionRunDto[];
+  logs: ApiExecutionLogDto[];
+  latestReview: ApiReviewDto | null;
+  assetCandidates: ApiAssetCandidateDto[];
+}
+
+export interface ApiProjectLineageResponseDto {
+  projectId: string;
+  decisionId: string | null;
+  actions: ApiActionLineageItemDto[];
 }
 
 export interface ApiKnowledgeAssetDto {
@@ -333,6 +430,70 @@ export interface ApiCompileRoleStoryRequestDto {
 
 export interface ApiCompileRoleStoryResponseDto {
   roleStory: ApiRoleStoryDto;
+}
+
+export interface ApiApproveActionRequestDto {
+  approvedBy: string;
+  reason?: string;
+}
+
+export interface ApiApproveActionResponseDto {
+  action: ApiActionDto;
+  approval: ApiApprovalDto;
+}
+
+export interface ApiRejectActionRequestDto extends ApiApproveActionRequestDto {}
+
+export interface ApiRejectActionResponseDto extends ApiApproveActionResponseDto {}
+
+export interface ApiAgentTriggerRequestDto {
+  projectId: string;
+  actionId: string;
+}
+
+export interface ApiAgentTriggerResponseDto {
+  action: ApiActionDto;
+  run: ApiExecutionRunDto;
+  latestLog: ApiExecutionLogDto;
+}
+
+export interface ApiMockRunRequestDto {
+  projectId: string;
+  actionId: string;
+  runId: string;
+}
+
+export interface ApiMockRunResponseDto {
+  run: ApiExecutionRunDto;
+  executionResult: ApiExecutionResultDto;
+  latestLog: ApiExecutionLogDto;
+}
+
+export interface ApiWritebackResponseDto {
+  action: ApiActionDto;
+  updatedProjectSnapshot: ApiProjectSnapshotDto | null;
+  updatedKpis: ApiKpiMetricDto[];
+  writebackRecord: ApiWritebackRecordDto;
+  latestLog: ApiExecutionLogDto;
+}
+
+export interface ApiGenerateReviewRequestDto {
+  projectId: string;
+  actionId: string;
+  runId: string;
+}
+
+export interface ApiGenerateReviewResponseDto {
+  review: ApiReviewDto;
+}
+
+export interface ApiPublishAssetCandidateRequestDto {
+  projectId: string;
+  reviewId: string;
+}
+
+export interface ApiPublishAssetCandidateResponseDto {
+  assetCandidate: ApiAssetCandidateDto;
 }
 
 export type ApiRoleProfileDto = RoleDashboardResponse["roleProfile"];

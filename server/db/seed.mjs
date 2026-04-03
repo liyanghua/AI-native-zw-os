@@ -48,16 +48,40 @@ const projects = [
     ],
     actions: [
       {
-        actionId: "action-launch-price-check",
-        actionType: "price_adjustment",
-        description: "验证价格带和权益组合是否是转化瓶颈。",
+        actionId: "action-launch-adjust-launch-plan",
+        decisionId: "decision-local-launch-breeze-bag",
+        role: "operations_director",
+        actionDomain: "operations",
+        actionType: "adjust_launch_plan",
+        description: "重新组织首发计划，先收缩低效流量并验证价格承接假设。",
         owner: "赵颖",
         requiredApproval: 1,
         approvalStatus: "pending",
         executionStatus: "suggested",
         expectedMetric: "cvr",
+        expectedDirection: "up",
+        confidence: "high",
+      },
+      {
+        actionId: "action-launch-refresh-main-visual",
+        decisionId: "decision-local-launch-breeze-bag",
+        role: "visual_director",
+        actionDomain: "visual",
+        actionType: "refresh_main_visual",
+        description: "重做主图和首屏承接表达，减少点击后流失。",
+        owner: "林乔",
+        requiredApproval: 0,
+        approvalStatus: "not_required",
+        executionStatus: "suggested",
+        expectedMetric: "ctr",
+        expectedDirection: "up",
+        confidence: "medium",
       },
     ],
+    approvals: [],
+    executionRuns: [],
+    executionLogs: [],
+    writebackRecords: [],
   },
   {
     projectId: "local-growth-travel-pro",
@@ -96,7 +120,27 @@ const projects = [
         description: "ROI 连续 3 个观测窗口下行，必须暂停当前放量策略。",
       },
     ],
-    actions: [],
+    actions: [
+      {
+        actionId: "action-growth-budget-reallocation",
+        decisionId: "decision-local-growth-travel-pro",
+        role: "operations_director",
+        actionDomain: "operations",
+        actionType: "pause_low_roi_action",
+        description: "暂停低 ROI 放量动作，并把预算重配到高意图组合。",
+        owner: "张伟",
+        requiredApproval: 1,
+        approvalStatus: "pending",
+        executionStatus: "suggested",
+        expectedMetric: "roi",
+        expectedDirection: "up",
+        confidence: "high",
+      },
+    ],
+    approvals: [],
+    executionRuns: [],
+    executionLogs: [],
+    writebackRecords: [],
   },
   {
     projectId: "local-review-office-classic",
@@ -137,28 +181,112 @@ const projects = [
     ],
     actions: [
       {
-        actionId: "action-review-page-refresh",
-        actionType: "visual_refresh",
-        description: "统一详情页主卖点顺序与价格说明方式。",
+        actionId: "action-review-refine-product-definition",
+        decisionId: "decision-local-review-office-classic",
+        role: "product_rnd_director",
+        actionDomain: "product_rnd",
+        actionType: "refine_product_definition",
+        description: "把办公包成功卖点沉淀成下一轮新品定义与 SKU 判断规则。",
         owner: "林乔",
         requiredApproval: 0,
         approvalStatus: "approved",
         executionStatus: "completed",
-        expectedMetric: "cvr",
+        expectedMetric: "conversion_count",
+        expectedDirection: "stable",
+        confidence: "high",
+      },
+    ],
+    approvals: [
+      {
+        approvalId: "approval-review-refine-product-definition",
+        actionId: "action-review-refine-product-definition",
+        role: "product_rnd_director",
+        approvalStatus: "approved",
+        approvedBy: "李安",
+        reason: "允许把项目经验沉淀为下一轮商品定义规则。",
+        createdAt: "2026-04-02T10:40:00+08:00",
+        updatedAt: "2026-04-02T10:40:00+08:00",
+      },
+    ],
+    executionRuns: [
+      {
+        runId: "run-review-refine-product-definition",
+        actionId: "action-review-refine-product-definition",
+        role: "product_rnd_director",
+        actionDomain: "product_rnd",
+        agentName: "product-rnd-agent",
+        connectorName: "mock-product-rnd-connector",
+        requestPayload: {
+          actionDomain: "product_rnd",
+          productDirection: "办公包通勤场景",
+          refinementGoal: "沉淀下一轮新品定义规则",
+        },
+        responsePayload: {
+          resultStatus: "completed",
+          productDefinitionUpdate: "明确首屏卖点、材质说明、价格承诺三件套",
+          launchReadiness: "captured_for_reuse",
+        },
+        resultStatus: "completed",
+        startedAt: "2026-04-02T10:42:00+08:00",
+        finishedAt: "2026-04-02T10:46:00+08:00",
+      },
+    ],
+    executionLogs: [
+      {
+        logId: "log-review-refine-product-definition-created",
+        actionId: "action-review-refine-product-definition",
+        runId: "run-review-refine-product-definition",
+        logType: "agent_triggered",
+        message: "商品研发 Agent 已接管复盘沉淀动作。",
+        createdAt: "2026-04-02T10:42:00+08:00",
+      },
+      {
+        logId: "log-review-refine-product-definition-completed",
+        actionId: "action-review-refine-product-definition",
+        runId: "run-review-refine-product-definition",
+        logType: "mock_execution_completed",
+        message: "已完成商品定义收敛，并输出可复用规则。",
+        createdAt: "2026-04-02T10:46:00+08:00",
+      },
+      {
+        logId: "log-review-refine-product-definition-writeback",
+        actionId: "action-review-refine-product-definition",
+        runId: "run-review-refine-product-definition",
+        logType: "writeback_succeeded",
+        message: "执行结果已回写到项目复盘与资产候选上下文。",
+        createdAt: "2026-04-02T10:48:00+08:00",
+      },
+    ],
+    writebackRecords: [
+      {
+        writebackId: "writeback-review-refine-product-definition",
+        actionId: "action-review-refine-product-definition",
+        runId: "run-review-refine-product-definition",
+        targetType: "project_snapshot",
+        targetId: "snapshot-local-review-office-classic",
+        payloadHash: "review-refine-product-definition-payload",
+        resultStatus: "succeeded",
+        errorMessage: null,
+        createdAt: "2026-04-02T10:48:00+08:00",
       },
     ],
     review: {
       reviewId: "review-office-classic",
+      sourceActionId: "action-review-refine-product-definition",
+      sourceRunId: "run-review-refine-product-definition",
       reviewSummary: "复盘确认：表达统一、价格说明前置后，转化率稳定抬升。",
       outcome: {
         verdict: "success",
         keyLearnings: ["详情页结构前置卖点", "价格说明与权益组合必须同屏出现"],
+        metricImpact: "CVR 稳定上升并沉淀为下一轮商品定义规则",
+        nextSuggestion: "转化经验可继续沉淀到办公包新品 launch checklist",
       },
       createdAt: "2026-04-02T10:55:00+08:00",
     },
     assetCandidates: [
       {
         candidateId: "candidate-office-classic-template",
+        sourceReviewId: "review-office-classic",
         title: "办公包详情页表达模板",
         contentMarkdown: "## 模板摘要\n- 首屏卖点\n- 价格说明\n- 通勤场景证明",
         status: "draft",
@@ -447,6 +575,10 @@ function resetBatch1Tables(db) {
     "knowledge_assets",
     "asset_candidates",
     "reviews",
+    "writeback_records",
+    "execution_logs",
+    "execution_runs",
+    "approvals",
     "actions",
     "stage_rules",
     "ontology_entities",
@@ -489,16 +621,107 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
     const insertAction = db.prepare(`
-      INSERT INTO actions (action_id, project_id, action_type, description, owner, required_approval, approval_status, execution_status, expected_metric, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO actions (
+        action_id,
+        project_id,
+        decision_id,
+        role,
+        action_domain,
+        action_type,
+        description,
+        owner,
+        required_approval,
+        approval_status,
+        execution_status,
+        expected_metric,
+        expected_direction,
+        confidence,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertApproval = db.prepare(`
+      INSERT INTO approvals (
+        approval_id,
+        project_id,
+        action_id,
+        role,
+        approval_status,
+        approved_by,
+        reason,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertExecutionRun = db.prepare(`
+      INSERT INTO execution_runs (
+        run_id,
+        project_id,
+        action_id,
+        role,
+        action_domain,
+        agent_name,
+        connector_name,
+        request_payload_json,
+        response_payload_json,
+        result_status,
+        started_at,
+        finished_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertExecutionLog = db.prepare(`
+      INSERT INTO execution_logs (
+        log_id,
+        project_id,
+        action_id,
+        run_id,
+        log_type,
+        message,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertWritebackRecord = db.prepare(`
+      INSERT INTO writeback_records (
+        writeback_id,
+        project_id,
+        action_id,
+        run_id,
+        target_type,
+        target_id,
+        payload_hash,
+        result_status,
+        error_message,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertReview = db.prepare(`
-      INSERT INTO reviews (review_id, project_id, review_summary, outcome_json, created_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO reviews (
+        review_id,
+        project_id,
+        source_action_id,
+        source_run_id,
+        review_summary,
+        outcome_json,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     const insertAssetCandidate = db.prepare(`
-      INSERT INTO asset_candidates (candidate_id, project_id, title, content_markdown, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO asset_candidates (
+        candidate_id,
+        project_id,
+        source_review_id,
+        title,
+        content_markdown,
+        status,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     const insertOntology = db.prepare(`
       INSERT INTO ontology_entities (entity_id, entity_type, entity_name, entity_json)
@@ -608,6 +831,9 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
         insertAction.run(
           action.actionId,
           project.projectId,
+          action.decisionId,
+          action.role,
+          action.actionDomain,
           action.actionType,
           action.description,
           action.owner,
@@ -615,8 +841,68 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
           action.approvalStatus,
           action.executionStatus,
           action.expectedMetric,
+          action.expectedDirection,
+          action.confidence,
           timestamps.created,
           timestamps.updated,
+        );
+      });
+
+      (project.approvals ?? []).forEach((approval) => {
+        insertApproval.run(
+          approval.approvalId,
+          project.projectId,
+          approval.actionId,
+          approval.role,
+          approval.approvalStatus,
+          approval.approvedBy,
+          approval.reason,
+          approval.createdAt,
+          approval.updatedAt,
+        );
+      });
+
+      (project.executionRuns ?? []).forEach((run) => {
+        insertExecutionRun.run(
+          run.runId,
+          project.projectId,
+          run.actionId,
+          run.role,
+          run.actionDomain,
+          run.agentName,
+          run.connectorName,
+          JSON.stringify(run.requestPayload),
+          JSON.stringify(run.responsePayload),
+          run.resultStatus,
+          run.startedAt,
+          run.finishedAt,
+        );
+      });
+
+      (project.executionLogs ?? []).forEach((log) => {
+        insertExecutionLog.run(
+          log.logId,
+          project.projectId,
+          log.actionId,
+          log.runId,
+          log.logType,
+          log.message,
+          log.createdAt,
+        );
+      });
+
+      (project.writebackRecords ?? []).forEach((record) => {
+        insertWritebackRecord.run(
+          record.writebackId,
+          project.projectId,
+          record.actionId,
+          record.runId,
+          record.targetType,
+          record.targetId,
+          record.payloadHash,
+          record.resultStatus,
+          record.errorMessage,
+          record.createdAt,
         );
       });
 
@@ -624,6 +910,8 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
         insertReview.run(
           project.review.reviewId,
           project.projectId,
+          project.review.sourceActionId,
+          project.review.sourceRunId,
           project.review.reviewSummary,
           JSON.stringify(project.review.outcome),
           project.review.createdAt,
@@ -634,6 +922,7 @@ export async function seedLocalSandboxDatabase({ dbPath } = {}) {
         insertAssetCandidate.run(
           candidate.candidateId,
           project.projectId,
+          candidate.sourceReviewId,
           candidate.title,
           candidate.contentMarkdown,
           candidate.status,

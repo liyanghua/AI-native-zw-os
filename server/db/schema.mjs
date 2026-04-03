@@ -1,4 +1,4 @@
-export const BATCH1_TABLES = [
+export const LOCAL_SANDBOX_TABLES = [
   "projects",
   "project_snapshots",
   "kpi_metrics",
@@ -7,6 +7,10 @@ export const BATCH1_TABLES = [
   "ontology_entities",
   "stage_rules",
   "actions",
+  "approvals",
+  "execution_runs",
+  "execution_logs",
+  "writeback_records",
   "reviews",
   "asset_candidates",
   "knowledge_assets",
@@ -14,6 +18,8 @@ export const BATCH1_TABLES = [
   "knowledge_chunks_fts",
   "knowledge_retrieval_logs",
 ];
+
+export const BATCH1_TABLES = LOCAL_SANDBOX_TABLES;
 
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS projects (
@@ -86,6 +92,9 @@ CREATE TABLE IF NOT EXISTS stage_rules (
 CREATE TABLE IF NOT EXISTS actions (
   action_id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  decision_id TEXT,
+  role TEXT,
+  action_domain TEXT,
   action_type TEXT NOT NULL,
   description TEXT NOT NULL,
   owner TEXT NOT NULL,
@@ -93,13 +102,67 @@ CREATE TABLE IF NOT EXISTS actions (
   approval_status TEXT NOT NULL,
   execution_status TEXT NOT NULL,
   expected_metric TEXT,
+  expected_direction TEXT,
+  confidence TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS approvals (
+  approval_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  action_id TEXT NOT NULL REFERENCES actions(action_id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  approval_status TEXT NOT NULL,
+  approved_by TEXT NOT NULL,
+  reason TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS execution_runs (
+  run_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  action_id TEXT NOT NULL REFERENCES actions(action_id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  action_domain TEXT NOT NULL,
+  agent_name TEXT NOT NULL,
+  connector_name TEXT NOT NULL,
+  request_payload_json TEXT NOT NULL,
+  response_payload_json TEXT,
+  result_status TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  finished_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS execution_logs (
+  log_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  action_id TEXT NOT NULL REFERENCES actions(action_id) ON DELETE CASCADE,
+  run_id TEXT NOT NULL REFERENCES execution_runs(run_id) ON DELETE CASCADE,
+  log_type TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS writeback_records (
+  writeback_id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  action_id TEXT NOT NULL REFERENCES actions(action_id) ON DELETE CASCADE,
+  run_id TEXT NOT NULL REFERENCES execution_runs(run_id) ON DELETE CASCADE,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  payload_hash TEXT NOT NULL,
+  result_status TEXT NOT NULL,
+  error_message TEXT,
+  created_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS reviews (
   review_id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  source_action_id TEXT REFERENCES actions(action_id) ON DELETE SET NULL,
+  source_run_id TEXT REFERENCES execution_runs(run_id) ON DELETE SET NULL,
   review_summary TEXT NOT NULL,
   outcome_json TEXT NOT NULL,
   created_at TEXT NOT NULL
@@ -108,6 +171,7 @@ CREATE TABLE IF NOT EXISTS reviews (
 CREATE TABLE IF NOT EXISTS asset_candidates (
   candidate_id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  source_review_id TEXT REFERENCES reviews(review_id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   content_markdown TEXT NOT NULL,
   status TEXT NOT NULL,

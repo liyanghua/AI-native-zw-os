@@ -23,7 +23,10 @@ export default async function run() {
 
       [
         "actions",
+        "approvals",
         "asset_candidates",
+        "execution_logs",
+        "execution_runs",
         "kpi_metrics",
         "knowledge_assets",
         "knowledge_chunks",
@@ -36,6 +39,7 @@ export default async function run() {
         "reviews",
         "risk_signals",
         "stage_rules",
+        "writeback_records",
       ].forEach((tableName) => {
         assert.ok(tables.includes(tableName), `expected table ${tableName}`);
       });
@@ -58,6 +62,17 @@ export default async function run() {
         .get("local-growth-travel-pro");
       assert.equal(growthProject.stage, "growth_optimization");
 
+      const growthAction = db
+        .prepare(`
+          SELECT action_id, decision_id, role, action_domain, approval_status, execution_status
+          FROM actions
+          WHERE project_id = ?
+        `)
+        .get("local-growth-travel-pro");
+      assert.equal(growthAction.action_id, "action-growth-budget-reallocation");
+      assert.equal(growthAction.action_domain, "operations");
+      assert.equal(growthAction.approval_status, "pending");
+
       const reviewProject = db
         .prepare("SELECT project_id, stage, status FROM projects WHERE project_id = ?")
         .get("local-review-office-classic");
@@ -65,12 +80,30 @@ export default async function run() {
       assert.equal(reviewProject.status, "closed");
 
       const actionCount = db.prepare("SELECT COUNT(*) AS count FROM actions").get().count;
-      assert.ok(actionCount >= 1, "expected action placeholder rows");
+      assert.ok(actionCount >= 3, "expected action seed rows across all projects");
+
+      const approvalCount = db.prepare("SELECT COUNT(*) AS count FROM approvals").get().count;
+      const executionRunCount = db.prepare("SELECT COUNT(*) AS count FROM execution_runs").get().count;
+      const executionLogCount = db.prepare("SELECT COUNT(*) AS count FROM execution_logs").get().count;
+      assert.ok(approvalCount >= 1, "expected approval seed rows");
+      assert.ok(executionRunCount >= 1, "expected execution run seed rows");
+      assert.ok(executionLogCount >= 1, "expected execution log seed rows");
 
       const reviewCount = db.prepare("SELECT COUNT(*) AS count FROM reviews").get().count;
       const assetCandidateCount = db.prepare("SELECT COUNT(*) AS count FROM asset_candidates").get().count;
       assert.ok(reviewCount >= 1, "expected review placeholders");
       assert.ok(assetCandidateCount >= 1, "expected asset candidate placeholders");
+
+      const reviewLineage = db
+        .prepare("SELECT source_action_id, source_run_id FROM reviews WHERE source_action_id IS NOT NULL LIMIT 1")
+        .get();
+      assert.ok(reviewLineage.source_action_id, "expected review source action lineage");
+      assert.ok(reviewLineage.source_run_id, "expected review source run lineage");
+
+      const assetLineage = db
+        .prepare("SELECT source_review_id FROM asset_candidates WHERE source_review_id IS NOT NULL LIMIT 1")
+        .get();
+      assert.ok(assetLineage.source_review_id, "expected asset candidate source review lineage");
 
       const knowledgeAssetCount = db.prepare("SELECT COUNT(*) AS count FROM knowledge_assets").get().count;
       const knowledgeChunkCount = db.prepare("SELECT COUNT(*) AS count FROM knowledge_chunks").get().count;

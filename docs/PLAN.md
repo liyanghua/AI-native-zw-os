@@ -83,6 +83,27 @@
 - 接入 review 生成与 asset publish 占位服务
 - 补齐 lineage / audit / idempotency
 
+已完成：
+
+- `POST /api/actions/:id/approve`
+- `POST /api/actions/:id/reject`
+- `POST /api/agent/trigger`
+- `POST /api/execution/mock-run`
+- `POST /api/execution/:runId/writeback`
+- `POST /api/review/generate`
+- `POST /api/assets/publish-candidate`
+- `GET /api/projects/:id/lineage`
+- SQLite execution tables / writeback / lineage 扩展
+- `/project/:id` 执行闭环区块接入
+- `boss` / `operations_director` dashboard 最小反映执行状态
+
+进入 Batch 5 的前置条件：
+
+- 至少 1 个项目可以在本地沙箱中跑通 approve -> trigger -> execute -> writeback -> review -> asset candidate
+- 项目页能看到 execution history / review / asset candidate
+- 角色页能看到同一项目的闭环状态变化
+- 下一步可以把重点转到更完整的协同编排、资产治理和知识循环
+
 当前已具备角色闭环入口的页面：
 
 - `/boss`
@@ -97,3 +118,10 @@
 - 人 × 大脑 × Agent × 执行端协同跑通
 - 业务主线闭环、角色闭环、协同闭环都能用同一 pilot 项目演示
 - 增加更完整的试点指标和验收走查
+
+当前距离 Batch 5 仍差：
+
+- mock connector 替换为更真实的执行端集成
+- 更完整的动作中心主交互迁移
+- review / asset candidate 的治理与发布机制
+- product_rnd_director / visual_director 更完整的执行与知识沉淀深挖

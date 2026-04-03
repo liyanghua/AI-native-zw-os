@@ -1,5 +1,6 @@
 import type { QueryResult } from "../../domain/types/query";
 import type {
+  ActionLineage,
   DecisionContext,
   DecisionObject,
   EvidencePack,
@@ -21,6 +22,13 @@ export function createLocalSandboxProjectsRepository(
   dependencies: {
     knowledge: {
       getProjectKnowledge(projectId: string): Promise<QueryResult<KnowledgeSearchResult>>;
+    };
+    execution: {
+      getProjectLineage(projectId: string): Promise<QueryResult<{
+        projectId: string;
+        decisionId: string | null;
+        actions: ActionLineage[];
+      }>>;
     };
     brain: {
       compileContext(projectId: string): Promise<QueryResult<{
@@ -58,7 +66,7 @@ export function createLocalSandboxProjectsRepository(
         const detailResponse = await client.getProjectDetail(projectId);
         const detail = buildProjectDetailData(detailResponse);
 
-        const [knowledge, context, decision, bossStory, operationsStory, productStory, visualStory] = await Promise.all([
+        const [knowledge, context, decision, bossStory, operationsStory, productStory, visualStory, lineage] = await Promise.all([
           dependencies.knowledge.getProjectKnowledge(projectId),
           dependencies.brain.compileContext(projectId),
           dependencies.brain.compileDecision(projectId),
@@ -66,6 +74,7 @@ export function createLocalSandboxProjectsRepository(
           dependencies.brain.compileRoleStory(projectId, "operations_director"),
           dependencies.brain.compileRoleStory(projectId, "product_rnd_director"),
           dependencies.brain.compileRoleStory(projectId, "visual_director"),
+          dependencies.execution.getProjectLineage(projectId),
         ]);
 
         const issues = [
@@ -76,6 +85,7 @@ export function createLocalSandboxProjectsRepository(
           ...operationsStory.issues,
           ...productStory.issues,
           ...visualStory.issues,
+          ...lineage.issues,
         ];
 
         if (
@@ -85,7 +95,8 @@ export function createLocalSandboxProjectsRepository(
           bossStory.data &&
           operationsStory.data &&
           productStory.data &&
-          visualStory.data
+          visualStory.data &&
+          lineage.data
         ) {
           return createQueryResult({
             data: buildProjectWorkbenchData({
@@ -102,6 +113,7 @@ export function createLocalSandboxProjectsRepository(
                 product_rnd_director: productStory.data,
                 visual_director: visualStory.data,
               },
+              actionLineage: lineage.data,
             }),
             lastUpdatedAt: detail.project.updatedAt,
             issues,
@@ -130,6 +142,10 @@ export function createLocalSandboxProjectsRepository(
                     visual_director: visualStory.data,
                   }
                 : undefined,
+            actionLineage: lineage.data ?? undefined,
+            reviews: lineage.data?.actions
+              .map((item) => item.latestReview)
+              .filter(Boolean) ?? undefined,
           },
           issues.length > 0
             ? issues

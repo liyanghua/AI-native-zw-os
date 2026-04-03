@@ -15,6 +15,10 @@
 - 角色页不得维护独立真相，所有角色页必须复用同一个 `projectId`。
 - Director archetype 必须通过 `RoleProfile` 明确定义，不能继续把所有总监收口成一个泛化 `director`。
 - 页面不得临时拼 role story 或 role dashboard 逻辑，必须消费 server compose 结果。
+- 页面不得伪造执行成功状态，execution / writeback / review / asset candidate 必须来自 API 返回。
+- 执行结果必须通过 API 写回数据库，不能只在前端本地状态中“看起来成功”。
+- review 与 asset candidate 必须带 source lineage，至少能回溯到 action / run / review。
+- action domain 必须显式区分 `operations` / `product_rnd` / `visual`，不能把三类动作压平成一种模板。
 - 代码实现与 `docs/` 文档必须同步更新，不能只改代码不改文档。
 
 ## 字体与排版（Typography）

@@ -19,20 +19,30 @@
 1. `server/db/*`
    - 本地 SQLite schema / init / seed / query helper
    - Batch 2 新增 knowledge tables、chunk、retrieval log 与 brain compile helper
+   - Batch 4 新增 approvals、execution runs、execution logs、writeback records、review / asset lineage helper
 2. `server/api/*`
    - 本地 Node API，当前暴露：
      - `/api/projects`
      - `/api/projects/:id`
+     - `/api/projects/:id/lineage`
      - `/api/projects/:id/knowledge`
      - `/api/knowledge/search`
      - `/api/brain/compile-context`
      - `/api/brain/compile-decision`
      - `/api/brain/compile-role-story`
      - `/api/roles/:role/dashboard`
+     - `/api/actions/:id/approve`
+     - `/api/actions/:id/reject`
+     - `/api/agent/trigger`
+     - `/api/execution/mock-run`
+     - `/api/execution/:runId/writeback`
+     - `/api/review/generate`
+     - `/api/assets/publish-candidate`
 3. `src/data-access/localSandboxRepositories/*`
    - API DTO 到前端 typed repository 的映射层
    - Batch 2 新增 knowledge repository、brain repository、project workbench 聚合查询
    - Batch 3 新增 roles repository 与 role dashboard 查询
+   - Batch 4 新增 execution repository，统一承接审批、触发、执行、回写、review、asset candidate
 4. `src/data-access/PilotDataProvider.tsx`
    - 组合根；当前为混合模式：
      - `/lifecycle`、生命周期阶段页、`/project/:id` 走 API-backed repository
@@ -42,14 +52,16 @@
 
 这使得当前已具备一条可替换的本地主线链路：
 
-`SQLite -> Knowledge Retrieval / Brain Compile / Role Composition -> Local API -> repository/query -> 项目页与角色页`
+`SQLite -> Knowledge Retrieval / Brain Compile / Role Composition / Agent Trigger / Mock Execution / Writeback -> Local API -> repository/query -> 项目页与角色页`
 
 其中：
 
 - `Knowledge Retrieval` 采用 SQLite FTS5 + 结构化 metadata 过滤的轻量 RAG
 - `Brain Compile` 在 server 层完成 `DecisionContext`、`DecisionObject`、`RoleStory` 的规则编译
 - `Role Composition` 在 server 层基于同一项目对象编译 `RoleDashboardResponse`
-- Agent / Execution 仍是后续批次的边界，不在 Batch 2 内实现
+- `Agent Trigger` 在 server 层创建 `execution_run` 并推进 action 状态
+- `Mock Execution Connector` 按 `operations` / `product_rnd` / `visual` 返回不同执行结果
+- `Writeback`、`Review Generate`、`Asset Candidate Publish` 均真实落 SQLite
 
 ---
 
@@ -130,6 +142,22 @@
 - 状态回写
 - 风险告警
 - 回滚
+
+当前 Local Pilot Sandbox 的 Batch 4 实现是：
+
+- `POST /api/agent/trigger`
+- `POST /api/execution/mock-run`
+- `POST /api/execution/:runId/writeback`
+- `POST /api/review/generate`
+- `POST /api/assets/publish-candidate`
+
+它不是生产执行系统，而是一套本地 mock orchestration：
+
+1. 人工审批动作
+2. Agent trigger 创建 execution run
+3. Mock connector 返回域内执行结果
+4. writeback 更新项目、KPI、日志与 lineage
+5. review / asset candidate 继续沉淀
 
 前端要体现为：
 - Action Hub
@@ -223,9 +251,9 @@
 
 **后续仍会增加：**
 
-- Agent 协同层
-- Execution / writeback 层
-- review / asset publish 主线
+- 非 mock connector 的真实外部系统接入
+- 更完整的异步 orchestration / workflow engine
+- review / asset candidate 的治理与发布主线
 - product_rnd_director / visual_director 的更完整领域深挖
 
 本阶段重点是：
@@ -234,4 +262,5 @@
 - 生命周期页和项目详情页脱离页面内联 mock
 - 项目详情页能展示项目、证据、决策与角色叙事
 - 角色页通过 role-aware composition 复用同一个 project / decision / role story 数据链路
+- 项目详情页能跑通 mock 执行闭环并写回 SQLite
 - 与 `DATA_MODEL.md` 的概念边界一致，并为后续批次留出可扩展接口

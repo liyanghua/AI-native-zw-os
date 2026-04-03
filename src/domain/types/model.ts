@@ -64,6 +64,11 @@ export type ApprovalStatus =
 
 export type ExecutionMode = "manual" | "agent" | "automation";
 
+export type ActionDomain =
+  | "operations"
+  | "product_rnd"
+  | "visual";
+
 export type ExecutionStatus =
   | "suggested"
   | "queued"
@@ -111,7 +116,19 @@ export type ActionType =
   | "inventory_restock"
   | "budget_reallocation"
   | "price_confirmation"
-  | "review_publish";
+  | "review_publish"
+  | "adjust_launch_plan"
+  | "increase_campaign_support"
+  | "pause_low_roi_action"
+  | "push_stage_transition"
+  | "initiate_sampling"
+  | "refine_product_definition"
+  | "promote_to_launch_validation"
+  | "pause_product_direction"
+  | "refresh_main_visual"
+  | "iterate_video_asset"
+  | "revise_detail_page"
+  | "support_launch_creative";
 
 export type SourceObjectType =
   | "project"
@@ -500,36 +517,52 @@ export interface AllowedActionByStage {
 }
 
 export interface ApprovalRecord extends EntityMeta {
+  projectId?: string;
   actionId: string;
+  role?: RoleType;
   approver: string;
   status: ApprovalStatus;
   reason?: string;
+  approvalStatus?: ApprovalStatus;
+  approvedBy?: string;
 }
 
 export interface ExecutionLog extends EntityMeta {
+  projectId?: string;
   actionId: string;
+  runId?: string;
   actorType: "human" | "agent" | "automation";
   actorId: string;
   status: ExecutionStatus;
   summary: string;
+  logType?: string;
+  message?: string;
 }
 
 export interface ActionItem extends EntityMeta {
+  actionId?: string;
+  projectId?: string;
   sourceProjectId: string;
   sourceStage: LifecycleStage;
+  actionDomain?: ActionDomain;
   actionType: ActionType;
   decisionId: string;
+  role?: RoleType;
   actionVersion: number;
   idempotencyKey: string;
   goal: string;
   title: string;
   summary: string;
+  description?: string;
   expectedImpact: string;
   risk: RiskLevel;
   owner: string;
   approvalStatus: ApprovalStatus;
   executionMode: ExecutionMode;
   executionStatus: ExecutionStatus;
+  expectedMetric?: string;
+  expectedDirection?: "up" | "down" | "stable";
+  confidence?: ConfidenceLevel;
   writebackStatus: WritebackStatus;
   writebackAttemptCount: number;
   lastWritebackError?: string;
@@ -575,6 +608,80 @@ export interface ExecutionWritebackRecord extends EntityMeta {
   resultStatus: WritebackStatus;
   errorMessage?: string;
   attemptCount: number;
+}
+
+export interface WritebackRecord extends EntityMeta {
+  writebackId: string;
+  projectId: string;
+  actionId: string;
+  runId: string;
+  targetType: string;
+  targetId: string;
+  payloadHash: string;
+  resultStatus: WritebackStatus;
+  errorMessage?: string;
+}
+
+export interface ExecutionRun extends EntityMeta {
+  runId: string;
+  projectId: string;
+  actionId: string;
+  role: RoleType;
+  actionDomain: ActionDomain;
+  agentName: string;
+  connectorName: string;
+  resultStatus: ExecutionStatus;
+  requestPayload: Record<string, unknown>;
+  responsePayload?: Record<string, unknown> | null;
+  startedAt: string;
+  finishedAt?: string | null;
+}
+
+export interface ExecutionMetricChange {
+  metricName: string;
+  previousValue: number;
+  newValue: number;
+  metricUnit?: string;
+}
+
+export interface ExecutionResult {
+  actionDomain: ActionDomain;
+  resultStatus: ExecutionStatus;
+  changedMetrics: ExecutionMetricChange[];
+  notes: string[];
+  riskChange?: string;
+  stageRecommendation?: string;
+  productDefinitionUpdate?: string;
+  launchReadiness?: string;
+  creativeOutcome?: string;
+  assetHint?: string;
+}
+
+export interface WritebackResult {
+  action: ActionItem;
+  updatedProjectSnapshot: {
+    snapshotId: string;
+    projectId: string;
+    summary: string;
+    currentProblem: string;
+    currentGoal: string;
+    currentRisk: string;
+    createdAt: string;
+  } | null;
+  updatedKpis: KpiMetric[];
+  writebackRecord: WritebackRecord;
+  latestLog: ExecutionLog;
+}
+
+export interface AgentTriggerRequest {
+  projectId: string;
+  actionId: string;
+}
+
+export interface AgentTriggerResponse {
+  action: ActionItem;
+  run: ExecutionRun;
+  latestLog: ExecutionLog;
 }
 
 export interface AgentState extends EntityMeta {
@@ -639,13 +746,20 @@ export interface AttributionFactor {
 }
 
 export interface ReviewSummary extends EntityMeta {
+  reviewId?: string;
   projectId: string;
+  sourceActionId?: string;
+  sourceRunId?: string;
   verdict: ReviewVerdict;
   resultSummary: string;
+  summary?: string;
   attributionSummary: string;
   attributionFactors: AttributionFactor[];
   lessonsLearned: string[];
   recommendations: string[];
+  keyOutcome?: string;
+  metricImpact?: string;
+  nextSuggestion?: string;
 }
 
 export interface ReviewLineage {
@@ -658,7 +772,9 @@ export interface ReviewLineage {
 }
 
 export interface AssetCandidate extends EntityMeta {
+  candidateId?: string;
   projectId: string;
+  sourceReviewId?: string;
   type: AssetType;
   title: string;
   rationale: string;
@@ -843,6 +959,8 @@ export interface RoleProjectCard {
   headlineOpportunity: string;
   headlineRisk: string;
   primaryRecommendation: string;
+  workflowStatus?: string;
+  workflowSummary?: string;
   updatedAt: string;
 }
 
@@ -854,7 +972,19 @@ export interface RoleDecisionQueueItem {
   requiredOwner: string;
   requiredAction: string;
   requiresApproval: boolean;
+  approvalStatus?: ApprovalStatus;
+  executionStatus?: ExecutionStatus;
+  actionDomain?: ActionDomain;
   updatedAt: string;
+}
+
+export interface ActionLineage {
+  action: ActionItem;
+  approvals: ApprovalRecord[];
+  runs: ExecutionRun[];
+  logs: ExecutionLog[];
+  latestReview: ReviewSummary | null;
+  assetCandidates: AssetCandidate[];
 }
 
 export interface RoleRiskCard {

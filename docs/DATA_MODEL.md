@@ -16,7 +16,7 @@ The modeling goals are:
 This document defines the canonical data model for the prototype stage.
 核心用途：语义底座 + 对象骨架 + 状态协议 + AI/Agent 输出协议 + 页面复用基础 + 资产沉淀接口。
 
-### 1.1 Batch 2 已落地的 Local Sandbox 物理模型
+### 1.1 Batch 4 已落地的 Local Sandbox 物理模型
 
 当前仓库在 canonical domain model 之下，已经落地了第一批本地 SQLite 表结构，用于承载 Local Pilot Sandbox：
 
@@ -28,6 +28,10 @@ This document defines the canonical data model for the prototype stage.
 - `ontology_entities`
 - `stage_rules`
 - `actions`
+- `approvals`
+- `execution_runs`
+- `execution_logs`
+- `writeback_records`
 - `reviews`
 - `asset_candidates`
 
@@ -109,6 +113,26 @@ Batch 3 没有新增 SQLite 角色主表，而是在 server compose 层新增以
 
 - 这些对象不是底层持久化主表，而是基于同一个 `projectId + decision + role story` 组合出来的 role compose object
 - `director` 当前仅保留为兼容 alias，映射到 `operations_director`
+
+### 1.4 Batch 4 已新增的执行闭环对象
+
+Batch 4 在 Batch 1~3 的基础上，把本地 mock 执行闭环正式落进 SQLite / API / repository：
+
+- `ActionDomain`
+- `ExecutionRun`
+- `ExecutionLog`
+- `WritebackRecord`
+- `ExecutionResult`
+- `WritebackResult`
+- `ActionLineage`
+
+其中：
+
+- `actions` 表已扩展 `decision_id`、`role`、`action_domain`、`expected_direction`、`confidence`
+- `reviews` 表已扩展 `source_action_id`、`source_run_id`
+- `asset_candidates` 表已扩展 `source_review_id`
+- 不单独新增 `action_lineage` 主表，而是通过 `actions -> execution_runs -> reviews -> asset_candidates` 的关联字段组合 lineage
+- 当前 execution 仍是 mock connector，但 writeback / review / asset candidate 已真实写入 SQLite
 
 ---
 
@@ -238,7 +262,16 @@ export type ExecutionStatus =
   | "canceled";
 ```
 
-### 3.11 Agent Type
+### 3.11 Action Domain
+
+```ts
+export type ActionDomain =
+  | "operations"
+  | "product_rnd"
+  | "visual";
+```
+
+### 3.12 Agent Type
 
 ```ts
 export type AgentType =
@@ -254,7 +287,7 @@ export type AgentType =
   | "data_observer";
 ```
 
-### 3.12 Agent Status
+### 3.13 Agent Status
 
 ```ts
 export type AgentStatus =
@@ -624,25 +657,23 @@ export interface ExpressionPlan extends EntityMeta {
 
 ```ts
 export interface ActionItem extends EntityMeta {
-  sourceProjectId: string;
-  sourceStage: LifecycleStage;
-  goal: string;
-  title: string;
-  summary: string;
-  expectedImpact: string;
-  risk: RiskLevel;
+  projectId: string;
+  decisionId?: string;
+  role:
+    | "boss"
+    | "operations_director"
+    | "product_rnd_director"
+    | "visual_director";
+  actionDomain: ActionDomain;
+  actionType: string;
+  description: string;
   owner: string;
+  requiredApproval: boolean;
   approvalStatus: ApprovalStatus;
-  executionMode: ExecutionMode;
   executionStatus: ExecutionStatus;
-  validationWindow?: string;
-  rollbackCondition?: string;
-  requiresHumanApproval: boolean;
-  triggeredBy:
-    | "human"
-    | "decision_brain"
-    | "scenario_agent"
-    | "automation_rule";
+  expectedMetric?: string;
+  expectedDirection?: TrendDirection;
+  confidence?: number;
 }
 ```
 
@@ -650,9 +681,15 @@ export interface ActionItem extends EntityMeta {
 
 ```ts
 export interface ApprovalRecord extends EntityMeta {
+  projectId: string;
   actionId: string;
-  approver: string;
-  status: ApprovalStatus;
+  role:
+    | "boss"
+    | "operations_director"
+    | "product_rnd_director"
+    | "visual_director";
+  approvedBy: string;
+  approvalStatus: ApprovalStatus;
   reason?: string;
 }
 ```
@@ -661,11 +698,61 @@ export interface ApprovalRecord extends EntityMeta {
 
 ```ts
 export interface ExecutionLog extends EntityMeta {
+  projectId: string;
   actionId: string;
-  actorType: "human" | "agent" | "automation";
-  actorId: string;
-  status: ExecutionStatus;
-  summary: string;
+  runId: string;
+  logType: string;
+  message: string;
+}
+```
+
+### 11.4 Execution Run
+
+```ts
+export interface ExecutionRun extends EntityMeta {
+  projectId: string;
+  actionId: string;
+  role:
+    | "boss"
+    | "operations_director"
+    | "product_rnd_director"
+    | "visual_director";
+  actionDomain: ActionDomain;
+  agentName: string;
+  connectorName: string;
+  requestPayload: Record<string, unknown>;
+  responsePayload?: Record<string, unknown>;
+  resultStatus: ExecutionStatus;
+  startedAt: string;
+  finishedAt?: string;
+}
+```
+
+### 11.5 Writeback Record
+
+```ts
+export interface WritebackRecord extends EntityMeta {
+  projectId: string;
+  actionId: string;
+  runId: string;
+  targetType: string;
+  targetId: string;
+  payloadHash: string;
+  resultStatus: "success" | "failed";
+  errorMessage?: string;
+}
+```
+
+### 11.6 Action Lineage
+
+```ts
+export interface ActionLineage {
+  action: ActionItem;
+  approvals: ApprovalRecord[];
+  runs: ExecutionRun[];
+  logs: ExecutionLog[];
+  latestReview?: ReviewSummary;
+  assetCandidates: AssetCandidate[];
 }
 ```
 
@@ -771,12 +858,12 @@ export interface AttributionFactor {
 ```ts
 export interface ReviewSummary extends EntityMeta {
   projectId: string;
-  verdict: ReviewVerdict;
-  resultSummary: string;
-  attributionSummary: string;
-  attributionFactors: AttributionFactor[];
-  lessonsLearned: string[];
-  recommendations: string[];
+  sourceActionId?: string;
+  sourceRunId?: string;
+  summary: string;
+  keyOutcome: string;
+  metricImpact: string;
+  nextSuggestion: string;
 }
 ```
 
@@ -785,11 +872,10 @@ export interface ReviewSummary extends EntityMeta {
 ```ts
 export interface AssetCandidate extends EntityMeta {
   projectId: string;
-  type: AssetType;
+  sourceReviewId?: string;
   title: string;
-  rationale: string;
-  approvalStatus: ApprovalStatus;
-  applicability?: string;
+  contentMarkdown: string;
+  status: "draft" | "published";
 }
 ```
 

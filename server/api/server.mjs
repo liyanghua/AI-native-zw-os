@@ -7,6 +7,16 @@ import {
   compileRoleStory,
 } from "../db/brain.mjs";
 import {
+  approveAction,
+  generateReview,
+  getProjectLineage,
+  publishAssetCandidate,
+  rejectAction,
+  runMockExecution,
+  triggerAgent,
+  writebackExecutionRun,
+} from "../db/execution.mjs";
+import {
   getProjectKnowledge,
   searchKnowledge,
 } from "../db/knowledge.mjs";
@@ -51,6 +61,18 @@ function createRequestHandler(db) {
           return;
         }
         sendJson(response, 200, knowledge);
+        return;
+      }
+
+      const projectLineageMatch = url.pathname.match(/^\/api\/projects\/([^/]+)\/lineage$/);
+      if (request.method === "GET" && projectLineageMatch) {
+        const projectId = decodeURIComponent(projectLineageMatch[1]);
+        const lineage = getProjectLineage(db, projectId);
+        if (!lineage) {
+          sendJson(response, 404, jsonError("project_not_found", `Project ${projectId} not found.`));
+          return;
+        }
+        sendJson(response, 200, lineage);
         return;
       }
 
@@ -105,6 +127,60 @@ function createRequestHandler(db) {
         return;
       }
 
+      const approveActionMatch = url.pathname.match(/^\/api\/actions\/([^/]+)\/approve$/);
+      if (request.method === "POST" && approveActionMatch) {
+        const actionId = decodeURIComponent(approveActionMatch[1]);
+        const payload = await readJsonBody(request);
+        const result = approveAction(db, actionId, payload);
+        sendJson(response, 200, result);
+        return;
+      }
+
+      const rejectActionMatch = url.pathname.match(/^\/api\/actions\/([^/]+)\/reject$/);
+      if (request.method === "POST" && rejectActionMatch) {
+        const actionId = decodeURIComponent(rejectActionMatch[1]);
+        const payload = await readJsonBody(request);
+        const result = rejectAction(db, actionId, payload);
+        sendJson(response, 200, result);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/agent/trigger") {
+        const payload = await readJsonBody(request);
+        const result = triggerAgent(db, payload);
+        sendJson(response, 200, result);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/execution/mock-run") {
+        const payload = await readJsonBody(request);
+        const result = runMockExecution(db, payload);
+        sendJson(response, 200, result);
+        return;
+      }
+
+      const writebackMatch = url.pathname.match(/^\/api\/execution\/([^/]+)\/writeback$/);
+      if (request.method === "POST" && writebackMatch) {
+        const runId = decodeURIComponent(writebackMatch[1]);
+        const result = writebackExecutionRun(db, runId);
+        sendJson(response, 200, result);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/review/generate") {
+        const payload = await readJsonBody(request);
+        const result = generateReview(db, payload);
+        sendJson(response, 200, result);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/assets/publish-candidate") {
+        const payload = await readJsonBody(request);
+        const result = publishAssetCandidate(db, payload);
+        sendJson(response, 200, result);
+        return;
+      }
+
       const roleDashboardMatch = url.pathname.match(/^\/api\/roles\/([^/]+)\/dashboard$/);
       if (request.method === "GET" && roleDashboardMatch) {
         const role = decodeURIComponent(roleDashboardMatch[1]);
@@ -126,6 +202,14 @@ function createRequestHandler(db) {
     } catch (error) {
       if (error instanceof Error && error.message === "invalid_json_body") {
         sendJson(response, 400, jsonError("invalid_json_body", "Request body is not valid JSON."));
+        return;
+      }
+      if (error instanceof Error && "statusCode" in error && "code" in error) {
+        sendJson(
+          response,
+          error.statusCode,
+          jsonError(error.code, error.message, "details" in error ? error.details : undefined),
+        );
         return;
       }
       sendJson(

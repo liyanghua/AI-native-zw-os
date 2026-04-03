@@ -1,6 +1,11 @@
 import { getLifecycleStageLabel, getProjectStatusLabel } from "../../domain/runtime/labels";
 import type {
   ApiActionDto,
+  ApiActionLineageItemDto,
+  ApiApprovalDto,
+  ApiExecutionLogDto,
+  ApiExecutionResultDto,
+  ApiExecutionRunDto,
   ApiAssetCandidateDto,
   ApiCompileContextResponseDto,
   ApiCompileDecisionResponseDto,
@@ -11,15 +16,20 @@ import type {
   ApiKnowledgeSearchResultDto,
   ApiOpportunityDto,
   ApiProjectDetailDto,
+  ApiProjectLineageResponseDto,
   ApiProjectListItemDto,
   ApiRoleDashboardResponseDto,
   ApiRoleStoryDto,
   ApiReviewDto,
   ApiRiskSignalDto,
+  ApiWritebackRecordDto,
 } from "../../domain/types/api";
 import type {
+  ActionDomain,
+  ActionLineage,
   ActionItem,
   ApplicabilitySpec,
+  ApprovalRecord,
   AssetCandidate,
   AssetType,
   ConfidenceLevel,
@@ -27,6 +37,9 @@ import type {
   DecisionObject,
   EvidenceItem,
   EvidencePack,
+  ExecutionLog,
+  ExecutionResult,
+  ExecutionRun,
   KpiMetric,
   KnowledgeAsset,
   KnowledgeChunk,
@@ -42,6 +55,7 @@ import type {
   RoleType,
   ReviewSummary,
   RoleView,
+  WritebackRecord,
 } from "../../domain/types/model";
 import type { QueryIssue, QueryResult } from "../../domain/types/query";
 import { createQueryIssue, createQueryResult } from "../queryResult";
@@ -107,26 +121,34 @@ function mapOpportunity(dto: ApiOpportunityDto): Opportunity {
   };
 }
 
-function mapAction(dto: ApiActionDto, stage: LifecycleStage): ActionItem {
+export function mapAction(dto: ApiActionDto, stage: LifecycleStage): ActionItem {
   return {
     id: dto.actionId,
+    actionId: dto.actionId,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
+    projectId: dto.projectId,
     sourceProjectId: dto.projectId,
     sourceStage: stage,
     actionType: dto.actionType as ActionItem["actionType"],
-    decisionId: `batch1-placeholder-${dto.actionId}`,
+    actionDomain: (dto.actionDomain ?? "operations") as ActionDomain,
+    decisionId: dto.decisionId ?? `batch4-${dto.actionId}`,
+    role: dto.role ?? undefined,
     actionVersion: 1,
-    idempotencyKey: `batch1:${dto.actionId}`,
+    idempotencyKey: `local-sandbox:${dto.actionId}`,
     goal: dto.description,
     title: dto.description,
     summary: dto.description,
+    description: dto.description,
     expectedImpact: dto.expectedMetric ? `关注 ${dto.expectedMetric}` : "等待 Batch 2 决策编译补充",
     risk: dto.requiredApproval ? "high" : "medium",
     owner: dto.owner,
     approvalStatus: dto.requiredApproval ? dto.approvalStatus : "not_required",
     executionMode: "manual",
     executionStatus: dto.executionStatus,
+    expectedMetric: dto.expectedMetric ?? undefined,
+    expectedDirection: dto.expectedDirection ?? undefined,
+    confidence: dto.confidence ?? undefined,
     writebackStatus: "not_started",
     writebackAttemptCount: 0,
     validationWindow: "待补充",
@@ -136,7 +158,7 @@ function mapAction(dto: ApiActionDto, stage: LifecycleStage): ActionItem {
   };
 }
 
-function mapReview(dto: ApiReviewDto): ReviewSummary {
+export function mapReview(dto: ApiReviewDto): ReviewSummary {
   const verdict = (dto.outcome.verdict as ReviewSummary["verdict"]) ?? "observe_more";
   const keyLearnings = Array.isArray(dto.outcome.keyLearnings)
     ? dto.outcome.keyLearnings.filter((value): value is string => typeof value === "string")
@@ -144,15 +166,22 @@ function mapReview(dto: ApiReviewDto): ReviewSummary {
 
   return {
     id: dto.reviewId,
+    reviewId: dto.reviewId,
     projectId: dto.projectId,
+    sourceActionId: dto.sourceActionId ?? undefined,
+    sourceRunId: dto.sourceRunId ?? undefined,
     createdAt: dto.createdAt,
     updatedAt: dto.createdAt,
     verdict,
     resultSummary: dto.reviewSummary,
+    summary: dto.reviewSummary,
     attributionSummary: keyLearnings.join("；") || "Batch 1 仅保留 review 占位摘要。",
     attributionFactors: [],
     lessonsLearned: keyLearnings,
     recommendations: [],
+    keyOutcome: dto.keyOutcome ?? undefined,
+    metricImpact: dto.metricImpact ?? undefined,
+    nextSuggestion: dto.nextSuggestion ?? undefined,
   };
 }
 
@@ -169,7 +198,9 @@ function buildApplicability(stage: LifecycleStage, type: AssetType): Applicabili
 function mapAssetCandidate(dto: ApiAssetCandidateDto, stage: LifecycleStage): AssetCandidate {
   return {
     id: dto.candidateId,
+    candidateId: dto.candidateId,
     projectId: dto.projectId,
+    sourceReviewId: dto.sourceReviewId ?? undefined,
     createdAt: dto.createdAt,
     updatedAt: dto.createdAt,
     type: "template",
@@ -179,6 +210,114 @@ function mapAssetCandidate(dto: ApiAssetCandidateDto, stage: LifecycleStage): As
     applicability: buildApplicability(stage, "template"),
     contentMarkdown: dto.contentMarkdown,
     status: dto.status,
+  };
+}
+
+function mapApproval(dto: ApiApprovalDto): ApprovalRecord {
+  return {
+    id: dto.approvalId,
+    projectId: dto.projectId,
+    actionId: dto.actionId,
+    role: dto.role,
+    approver: dto.approvedBy,
+    approvedBy: dto.approvedBy,
+    status: dto.approvalStatus,
+    approvalStatus: dto.approvalStatus,
+    reason: dto.reason ?? undefined,
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt,
+  };
+}
+
+export function mapExecutionLog(dto: ApiExecutionLogDto): ExecutionLog {
+  return {
+    id: dto.logId,
+    projectId: dto.projectId,
+    actionId: dto.actionId,
+    runId: dto.runId,
+    actorType: dto.logType.includes("agent") ? "agent" : dto.logType.includes("writeback") ? "automation" : "human",
+    actorId: dto.logType,
+    status: dto.logType.includes("completed")
+      ? "completed"
+      : dto.logType.includes("queued")
+        ? "queued"
+        : dto.logType.includes("writeback")
+          ? "completed"
+          : "in_progress",
+    summary: dto.message,
+    logType: dto.logType,
+    message: dto.message,
+    createdAt: dto.createdAt,
+    updatedAt: dto.createdAt,
+  };
+}
+
+export function mapExecutionRun(dto: ApiExecutionRunDto): ExecutionRun {
+  return {
+    id: dto.runId,
+    runId: dto.runId,
+    projectId: dto.projectId,
+    actionId: dto.actionId,
+    role: dto.role,
+    actionDomain: dto.actionDomain,
+    agentName: dto.agentName,
+    connectorName: dto.connectorName,
+    requestPayload: dto.requestPayload,
+    responsePayload: dto.responsePayload,
+    resultStatus: dto.resultStatus,
+    startedAt: dto.startedAt,
+    finishedAt: dto.finishedAt,
+    createdAt: dto.startedAt,
+    updatedAt: dto.finishedAt ?? dto.startedAt,
+  };
+}
+
+export function mapExecutionResult(dto: ApiExecutionResultDto): ExecutionResult {
+  return {
+    actionDomain: dto.actionDomain,
+    resultStatus: dto.resultStatus,
+    changedMetrics: dto.changedMetrics,
+    notes: dto.notes,
+    riskChange: dto.riskChange,
+    stageRecommendation: dto.stageRecommendation,
+    productDefinitionUpdate: dto.productDefinitionUpdate,
+    launchReadiness: dto.launchReadiness,
+    creativeOutcome: dto.creativeOutcome,
+    assetHint: dto.assetHint,
+  };
+}
+
+export function mapWritebackRecord(dto: ApiWritebackRecordDto): WritebackRecord {
+  return {
+    id: dto.writebackId,
+    writebackId: dto.writebackId,
+    projectId: dto.projectId,
+    actionId: dto.actionId,
+    runId: dto.runId,
+    targetType: dto.targetType,
+    targetId: dto.targetId,
+    payloadHash: dto.payloadHash,
+    resultStatus: dto.resultStatus as WritebackRecord["resultStatus"],
+    errorMessage: dto.errorMessage ?? undefined,
+    createdAt: dto.createdAt,
+    updatedAt: dto.createdAt,
+  };
+}
+
+export function mapProjectLineage(dto: ApiProjectLineageResponseDto, stage: LifecycleStage) {
+  const actions = dto.actions.map((item: ApiActionLineageItemDto): ActionLineage => ({
+    action: mapAction(item.action, stage),
+    approvals: item.approvals.map(mapApproval),
+    runs: item.runs.map(mapExecutionRun),
+    logs: item.logs.map(mapExecutionLog),
+    latestReview: item.latestReview ? mapReview(item.latestReview) : null,
+    assetCandidates: item.assetCandidates.map((candidate) => mapAssetCandidate(candidate, stage)),
+  }));
+
+  return {
+    projectId: dto.projectId,
+    decisionId: dto.decisionId,
+    actions,
   };
 }
 
@@ -452,15 +591,15 @@ export function placeholderBlocks() {
   return [
     {
       id: "agent",
-      title: "场景 Agent",
-      description: "Batch 2 仍不做 Agent trigger，先把项目 + 证据 + 决策链路跑通。",
-      statusLabel: "Batch 3+",
+      title: "场景 Agent 与执行端",
+      description: "Batch 4 已进入 mock trigger / mock connector 阶段，后续继续替换为真实执行端。",
+      statusLabel: "Batch 4",
     },
     {
       id: "execution",
-      title: "执行回写",
-      description: "执行端、writeback、review publish、asset publish 留到后续批次。",
-      statusLabel: "Batch 3+",
+      title: "Review / Asset 沉淀",
+      description: "当前已支持 mock writeback、review generate 和 asset candidate，后续再接完整资产治理。",
+      statusLabel: "Batch 4",
     },
   ];
 }
@@ -569,6 +708,11 @@ export function buildProjectWorkbenchData(input: {
     evidencePack: EvidencePack;
   };
   roleStories: Record<RoleType, RoleStory>;
+  actionLineage: {
+    projectId: string;
+    decisionId: string | null;
+    actions: ActionLineage[];
+  };
 }): LocalSandboxProjectWorkbenchData {
   return {
     ...input.detail,
@@ -576,6 +720,10 @@ export function buildProjectWorkbenchData(input: {
     decisionContext: input.decisionContext,
     decision: input.decision,
     roleStories: input.roleStories,
+    actionLineage: input.actionLineage,
+    reviews: input.actionLineage.actions
+      .map((item) => item.latestReview)
+      .filter((review): review is ReviewSummary => Boolean(review)),
   };
 }
 
@@ -711,6 +859,14 @@ function emptyRoleStory(projectId: string, role: RoleStoryRole): RoleStory {
   };
 }
 
+function emptyActionLineage(projectId: string) {
+  return {
+    projectId,
+    decisionId: null,
+    actions: [],
+  };
+}
+
 export function buildWorkbenchErrorResult(
   projectId: string,
   detail: LocalSandboxProjectDetailData,
@@ -729,6 +885,8 @@ export function buildWorkbenchErrorResult(
         product_rnd_director: emptyRoleStory(projectId, "product_rnd_director"),
         visual_director: emptyRoleStory(projectId, "visual_director"),
       },
+      actionLineage: partials.actionLineage ?? emptyActionLineage(projectId),
+      reviews: partials.reviews ?? [],
     },
     lastUpdatedAt: detail.project.updatedAt,
     issues,

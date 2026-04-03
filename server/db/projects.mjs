@@ -36,6 +36,9 @@ function mapActionRow(row) {
   return {
     actionId: row.action_id,
     projectId: row.project_id,
+    decisionId: row.decision_id,
+    role: row.role,
+    actionDomain: row.action_domain,
     actionType: row.action_type,
     description: row.description,
     owner: row.owner,
@@ -43,6 +46,8 @@ function mapActionRow(row) {
     approvalStatus: row.approval_status,
     executionStatus: row.execution_status,
     expectedMetric: row.expected_metric,
+    expectedDirection: row.expected_direction,
+    confidence: row.confidence,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -55,6 +60,8 @@ function mapReviewRow(row) {
   return {
     reviewId: row.review_id,
     projectId: row.project_id,
+    sourceActionId: row.source_action_id,
+    sourceRunId: row.source_run_id,
     reviewSummary: row.review_summary,
     outcome: JSON.parse(row.outcome_json),
     createdAt: row.created_at,
@@ -65,6 +72,7 @@ function mapAssetCandidateRow(row) {
   return {
     candidateId: row.candidate_id,
     projectId: row.project_id,
+    sourceReviewId: row.source_review_id,
     title: row.title,
     contentMarkdown: row.content_markdown,
     status: row.status,

@@ -18,10 +18,13 @@ export function ProjectDetail() {
   const { id } = useParams();
   const { sandboxRepositories } = usePilotData();
   const [activeRole, setActiveRole] = useState<RoleStoryRole>("boss");
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [mutationMessage, setMutationMessage] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const { query, isLoading } = useRemoteQuery(
     () => sandboxRepositories.projects.getWorkbench(id ?? ""),
-    [sandboxRepositories, id],
+    [sandboxRepositories, id, refreshToken],
     { pollMs: 45_000 },
   );
 
@@ -39,9 +42,26 @@ export function ProjectDetail() {
 
   const workbench = query.data;
   const activeRoleStory = workbench.roleStories[activeRole];
+  const actionLineage = workbench.actionLineage.actions;
 
   if (query.error && workbench.project.priority === 0) {
     return <ShellState title="项目详情暂不可用" description={query.error} />;
+  }
+
+  async function runMutation(
+    label: string,
+    task: () => Promise<{ error: string | null; data: unknown }>,
+  ) {
+    setMutationError(null);
+    setMutationMessage(`${label}处理中...`);
+    const result = await task();
+    if (result.error || !result.data) {
+      setMutationError(result.error ?? `${label}失败。`);
+      setMutationMessage(null);
+      return;
+    }
+    setMutationMessage(`${label}已完成。`);
+    setRefreshToken((value) => value + 1);
   }
 
   return (
@@ -78,6 +98,17 @@ export function ProjectDetail() {
         lastUpdatedAt={query.lastUpdatedAt}
         issues={query.issues}
       />
+
+      {mutationMessage && !mutationError ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {mutationMessage}
+        </div>
+      ) : null}
+      {mutationError ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {mutationError}
+        </div>
+      ) : null}
 
       <section className="grid grid-cols-3 gap-4">
         <ContextCard label="当前问题" value={workbench.latestSnapshot?.currentProblem ?? "待补充"} />
@@ -233,7 +264,148 @@ export function ProjectDetail() {
         </section>
       </div>
 
-      <div className="grid grid-cols-[1.05fr,0.95fr] gap-6">
+      <div className="grid grid-cols-[1.08fr,0.92fr] gap-6">
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Action Execution Panel</h2>
+            <p className="mt-1 text-sm text-slate-500">把推荐动作推进成审批、Agent trigger、mock connector、writeback、review 和 asset candidate。</p>
+          </div>
+          <div className="space-y-4">
+            {actionLineage.length === 0 ? (
+              <EmptyCard title="当前没有可执行动作" description="等待后续编译或数据接入补充 action lineage。" />
+            ) : (
+              actionLineage.map((item) => {
+                const latestRun = item.runs[0];
+                const hasWriteback = item.logs.some((log) => log.logType === "writeback_succeeded");
+                return (
+                  <div key={item.action.id} className="rounded-2xl border border-slate-200 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="font-medium text-slate-900">{item.action.title}</div>
+                          <Tag label={item.action.actionDomain ?? "unknown"} tone="neutral" />
+                          <Tag label={item.action.approvalStatus} tone={item.action.approvalStatus === "approved" ? "success" : item.action.approvalStatus === "pending" ? "warning" : "neutral"} />
+                          <Tag label={item.action.executionStatus} tone={item.action.executionStatus === "completed" ? "success" : item.action.executionStatus === "queued" || item.action.executionStatus === "in_progress" ? "info" : "neutral"} />
+                        </div>
+                        <div className="text-sm text-slate-600">{item.action.summary}</div>
+                        <div className="text-xs text-slate-500">
+                          责任人 {item.action.owner} · 目标 {item.action.expectedMetric ?? "待补充"} · 方向 {item.action.expectedDirection ?? "待补充"}
+                        </div>
+                        {latestRun ? (
+                          <div className="text-xs text-slate-500">
+                            最新 run: {latestRun.runId} · {latestRun.resultStatus}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {item.action.approvalStatus === "pending" ? (
+                          <>
+                            <button
+                              onClick={() => void runMutation(
+                                "动作审批",
+                                () => sandboxRepositories.execution.approveAction(
+                                  item.action.actionId ?? item.action.id,
+                                  { approvedBy: "老板王敏", reason: "允许继续执行闭环验证。" },
+                                  workbench.project.stage,
+                                ),
+                              )}
+                              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                            >
+                              批准
+                            </button>
+                            <button
+                              onClick={() => void runMutation(
+                                "动作驳回",
+                                () => sandboxRepositories.execution.rejectAction(
+                                  item.action.actionId ?? item.action.id,
+                                  { approvedBy: "老板王敏", reason: "先暂停执行，等待更多证据。" },
+                                  workbench.project.stage,
+                                ),
+                              )}
+                              className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
+                            >
+                              驳回
+                            </button>
+                          </>
+                        ) : null}
+                        {(item.action.approvalStatus === "approved" || item.action.approvalStatus === "not_required") && item.runs.length === 0 ? (
+                          <button
+                            onClick={() => void runMutation(
+                              "触发 Agent",
+                              () => sandboxRepositories.execution.triggerAgent({
+                                projectId: workbench.project.projectId,
+                                actionId: item.action.actionId ?? item.action.id,
+                              }, workbench.project.stage),
+                            )}
+                            className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                          >
+                            触发 Agent
+                          </button>
+                        ) : null}
+                        {latestRun && latestRun.resultStatus === "queued" ? (
+                          <button
+                            onClick={() => void runMutation(
+                              "运行 Mock Connector",
+                              () => sandboxRepositories.execution.runMockExecution({
+                                projectId: workbench.project.projectId,
+                                actionId: item.action.actionId ?? item.action.id,
+                                runId: latestRun.runId,
+                              }),
+                            )}
+                            className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700"
+                          >
+                            运行 Mock Connector
+                          </button>
+                        ) : null}
+                        {latestRun && latestRun.resultStatus === "completed" && !hasWriteback ? (
+                          <button
+                            onClick={() => void runMutation(
+                              "写回结果",
+                              () => sandboxRepositories.execution.writebackRun(latestRun.runId),
+                            )}
+                            className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                          >
+                            写回结果
+                          </button>
+                        ) : null}
+                        {hasWriteback && !item.latestReview && latestRun ? (
+                          <button
+                            onClick={() => void runMutation(
+                              "生成 Review",
+                              () => sandboxRepositories.execution.generateReview({
+                                projectId: workbench.project.projectId,
+                                actionId: item.action.actionId ?? item.action.id,
+                                runId: latestRun.runId,
+                              }),
+                            )}
+                            className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700"
+                          >
+                            生成 Review
+                          </button>
+                        ) : null}
+                        {item.latestReview && item.assetCandidates.length === 0 ? (
+                          <button
+                            onClick={() => void runMutation(
+                              "发布 Asset Candidate",
+                              () => sandboxRepositories.execution.publishAssetCandidate({
+                                projectId: workbench.project.projectId,
+                                reviewId: item.latestReview?.reviewId ?? item.latestReview?.id ?? "",
+                              }),
+                            )}
+                            className="rounded-lg bg-orange-600 px-3 py-2 text-sm font-medium text-white hover:bg-orange-700"
+                          >
+                            发布 Asset Candidate
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">风险与商机输入</h2>
@@ -274,26 +446,82 @@ export function ProjectDetail() {
             )}
           </div>
         </section>
+      </div>
+
+      <div className="grid grid-cols-[1fr,1fr] gap-6">
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Execution History Panel</h2>
+            <p className="mt-1 text-sm text-slate-500">显式展示 run、connector、writeback 与日志，不在 UI 层伪造成功状态。</p>
+          </div>
+          <div className="space-y-3">
+            {actionLineage.flatMap((item) => item.logs).length === 0 ? (
+              <EmptyCard title="当前没有执行历史" description="先完成审批与 Agent trigger，执行日志会在这里出现。" />
+            ) : (
+              actionLineage.flatMap((item) =>
+                item.logs.map((log) => (
+                  <div key={log.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-medium text-slate-900">{log.message ?? log.summary}</div>
+                      <span className="text-xs text-slate-500">{log.createdAt}</span>
+                    </div>
+                    <div className="mt-2 text-xs text-slate-500">
+                      {log.logType ?? "execution_log"} · {log.runId ?? "no-run"}
+                    </div>
+                  </div>
+                )),
+              )
+            )}
+          </div>
+        </section>
 
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">后续闭环占位</h2>
-            <p className="mt-1 text-sm text-slate-500">Batch 2 已打通知识与决策，但 Agent / Execution 仍留在后续批次。</p>
+            <h2 className="text-lg font-semibold text-slate-900">Review Panel</h2>
+            <p className="mt-1 text-sm text-slate-500">执行完成后，review 由 API 基于 run result 与项目上下文生成并写入 SQLite。</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {workbench.placeholderBlocks.map((block) => (
-              <div key={block.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-3 flex items-center gap-2 text-slate-700">
-                  {iconForPlaceholder(block.id)}
-                  <span className="font-medium">{block.title}</span>
+          <div className="space-y-3">
+            {workbench.reviews.length === 0 ? (
+              <EmptyCard title="当前还没有 review" description="完成 writeback 后可以为当前动作生成 review。" />
+            ) : (
+              workbench.reviews.map((review) => (
+                <div key={review.id} className="rounded-xl border border-slate-200 p-4">
+                  <div className="font-medium text-slate-900">{review.summary ?? review.resultSummary}</div>
+                  <div className="mt-2 text-sm text-slate-600">{review.metricImpact ?? review.attributionSummary}</div>
+                  <div className="mt-2 text-xs text-slate-500">
+                    {review.keyOutcome ?? review.verdict} · {review.nextSuggestion ?? "待补充下一步建议"}
+                  </div>
                 </div>
-                <div className="text-sm text-slate-600">{block.description}</div>
-                <div className="mt-3 text-xs text-slate-500">{block.statusLabel}</div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
       </div>
+
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Asset Candidate Panel</h2>
+          <p className="mt-1 text-sm text-slate-500">asset candidate 会保留 source review lineage，并在本地沙箱里先以 draft 形式沉淀。</p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {workbench.assetCandidates.length === 0 ? (
+            <EmptyCard title="当前没有 asset candidate" description="完成 review 后可以把结论沉淀为资产候选。" />
+          ) : (
+            workbench.assetCandidates.map((candidate) => (
+              <div key={candidate.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="font-medium text-slate-900">{candidate.title}</div>
+                <div className="mt-2 text-sm text-slate-600">{candidate.rationale}</div>
+                <div className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                  {candidate.contentMarkdown}
+                </div>
+                <div className="mt-3 text-xs text-slate-500">
+                  {candidate.status ?? "draft"} · source review {candidate.sourceReviewId ?? "待补充"}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     </div>
   );
 }
@@ -383,6 +611,19 @@ function EmptyCard({ title, description }: { title: string; description: string 
       <div className="mt-2 text-sm text-slate-500">{description}</div>
     </div>
   );
+}
+
+function Tag({ label, tone }: { label: string; tone: "neutral" | "warning" | "success" | "info" }) {
+  const toneClass =
+    tone === "warning"
+      ? "bg-amber-50 text-amber-700"
+      : tone === "success"
+        ? "bg-emerald-50 text-emerald-700"
+        : tone === "info"
+          ? "bg-blue-50 text-blue-700"
+          : "bg-slate-100 text-slate-700";
+
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${toneClass}`}>{label}</span>;
 }
 
 function ShellState({ title, description }: { title: string; description: string }) {

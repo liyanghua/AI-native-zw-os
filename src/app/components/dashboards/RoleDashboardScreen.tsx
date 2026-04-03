@@ -132,6 +132,11 @@ export function RoleDashboardScreen({ role }: { role: RoleType }) {
                       <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
                         {project.primaryRecommendation}
                       </div>
+                      {project.workflowStatus || project.workflowSummary ? (
+                        <div className="mt-2 text-xs text-slate-500">
+                          {project.workflowStatus ?? "workflow"} · {project.workflowSummary ?? "待补充 workflow 摘要"}
+                        </div>
+                      ) : null}
                     </div>
                     <Link
                       to={`/project/${project.projectId}`}
@@ -163,6 +168,11 @@ export function RoleDashboardScreen({ role }: { role: RoleType }) {
                     <div className="mt-2 text-xs text-slate-500">
                       {item.requiredOwner} · {item.requiresApproval ? "需要审批" : "无需审批"}
                     </div>
+                    {item.actionDomain || item.approvalStatus || item.executionStatus ? (
+                      <div className="mt-1 text-xs text-slate-500">
+                        {item.actionDomain ?? "unknown"} · {item.approvalStatus ?? "n/a"} · {item.executionStatus ?? "suggested"}
+                      </div>
+                    ) : null}
                     <Link to={`/project/${item.projectId}`} className="mt-3 inline-flex text-sm text-blue-600 hover:text-blue-700">
                       去项目详情
                     </Link>

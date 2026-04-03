@@ -154,3 +154,27 @@ Reason:
 如果角色页在前端临时拼接 dashboard 逻辑，就会重新引入页面私有真相，也会导致角色页和项目详情页对同一个 `projectId` 的理解不一致。Batch 3 必须把角色编排沉到 server compose 层。
 Status:
 accepted
+
+---
+
+## D-020 Batch 4 uses mock execution before real system integration
+Reason:
+Batch 4 的目标是先证明推荐动作可以进入可执行、可回写、可复盘、可沉淀资产的闭环，而不是提前解决真实外部系统权限、可靠性、回滚和异步编排问题。先用 mock connector 可以把 action / execution / writeback / review / asset 的 contract 稳定下来，再替换底层执行端。
+Status:
+accepted
+
+---
+
+## D-021 Director archetypes must map to different action domains
+Reason:
+如果 `operations_director`、`product_rnd_director`、`visual_director` 仍共用一套泛化 action shape，就无法体现真实协同分工，也无法让后续 connector、writeback 和 review 结果有结构差异。Batch 4 必须显式区分 `operations`、`product_rnd`、`visual` 三类动作域。
+Status:
+accepted
+
+---
+
+## D-022 Writeback, review, and asset candidate must persist to SQLite
+Reason:
+如果执行成功、review 生成、asset candidate 发布只停留在 UI 状态，就无法形成真正可追溯的本地闭环，也无法让角色页和项目详情页共享同一套事实来源。Batch 4 必须把 writeback、review、asset candidate 真实写回 SQLite。
+Status:
+accepted

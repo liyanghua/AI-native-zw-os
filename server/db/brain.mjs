@@ -177,9 +177,9 @@ function buildRecommendedActions(detail, evidencePack) {
   if (detail.project.stage === "launch_validation") {
     return [
       {
-        actionId: `decision-${detail.project.projectId}-price-adjustment`,
-        actionType: "price_adjustment",
-        description: "先验证价格带和权益组合是否压制转化。",
+        actionId: "action-launch-adjust-launch-plan",
+        actionType: "adjust_launch_plan",
+        description: "重新组织首发节奏，优先验证价格承接和流量结构是否压制转化。",
         owner: detail.project.owner,
         dueAt,
         expectedMetric: "cvr",
@@ -189,12 +189,12 @@ function buildRecommendedActions(detail, evidencePack) {
         supportingEvidenceRefs: evidencePack.refs.slice(0, 4).map((item) => item.id),
       },
       {
-        actionId: `decision-${detail.project.projectId}-visual-refresh`,
-        actionType: "visual_refresh",
-        description: "同步优化首屏卖点和承接页结构，降低点击后流失。",
+        actionId: "action-launch-refresh-main-visual",
+        actionType: "refresh_main_visual",
+        description: "重做主图与首屏承接表达，减少点击后流失并提高创意一致性。",
         owner: "视觉/内容负责人",
         dueAt,
-        expectedMetric: "cvr",
+        expectedMetric: "ctr",
         expectedDirection: "up",
         requiredApproval: false,
         confidence: commonConfidence,
@@ -206,9 +206,9 @@ function buildRecommendedActions(detail, evidencePack) {
   if (detail.project.stage === "growth_optimization") {
     return [
       {
-        actionId: `decision-${detail.project.projectId}-budget-reallocation`,
-        actionType: "budget_reallocation",
-        description: "暂停低效预算位并重配到高意图人群和更强素材组合。",
+        actionId: "action-growth-budget-reallocation",
+        actionType: "pause_low_roi_action",
+        description: "暂停低 ROI 放量动作，并把预算重配到高意图人群和更强素材组合。",
         owner: detail.project.owner,
         dueAt,
         expectedMetric: "roi",
@@ -222,9 +222,9 @@ function buildRecommendedActions(detail, evidencePack) {
 
   return [
     {
-      actionId: `decision-${detail.project.projectId}-review-publish`,
-      actionType: "review_publish",
-      description: "把复盘结论沉淀成模板和规则，供下一轮项目复用。",
+      actionId: "action-review-refine-product-definition",
+      actionType: "refine_product_definition",
+      description: "把复盘结论沉淀成下一轮商品定义与 launch checklist 规则。",
       owner: detail.project.owner,
       dueAt,
       expectedMetric: "conversion_count",
@@ -457,14 +457,27 @@ export function compileRoleStory(db, projectId, role) {
       ...decisionBundle.evidencePack.missingEvidenceFlags,
     ].slice(0, 3),
     keyDecisions: decisionBundle.decisionObject.recommendedActions.map((action) =>
-      action.actionType === "visual_refresh"
+      action.actionType === "refresh_main_visual" ||
+      action.actionType === "iterate_video_asset" ||
+      action.actionType === "revise_detail_page" ||
+      action.actionType === "support_launch_creative"
         ? `优先创意动作：${action.description}`
         : `协同动作：${action.description}`,
     ),
     recommendedActions: decisionBundle.decisionObject.recommendedActions.filter(
-      (action) => action.actionType === "visual_refresh",
+      (action) =>
+        action.actionType === "refresh_main_visual" ||
+        action.actionType === "iterate_video_asset" ||
+        action.actionType === "revise_detail_page" ||
+        action.actionType === "support_launch_creative",
     ).length > 0
-      ? decisionBundle.decisionObject.recommendedActions.filter((action) => action.actionType === "visual_refresh")
+      ? decisionBundle.decisionObject.recommendedActions.filter(
+          (action) =>
+            action.actionType === "refresh_main_visual" ||
+            action.actionType === "iterate_video_asset" ||
+            action.actionType === "revise_detail_page" ||
+            action.actionType === "support_launch_creative",
+        )
       : decisionBundle.decisionObject.recommendedActions,
     pendingApprovals,
     recentOutcomes,
